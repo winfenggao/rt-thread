@@ -16,13 +16,13 @@
 #include "stackframe.h"
 
 .macro PUSH_8 reg
-    addi    sp, sp, -8
+    addi    sp, sp, -REGBYTES
     STORE   \reg, (sp)
 .endm
 
 .macro POP_8 reg
     LOAD    \reg, (sp)
-    addi    sp, sp, 8
+    addi    sp, sp, REGBYTES
 .endm
 
 .macro RESERVE_CONTEXT
@@ -44,9 +44,11 @@
     li      s10, (SSTATUS_SPP)
     or      s11, s11, s10
     PUSH_8  s11
+    addi    sp, sp, -REGBYTES
 .endm
 
 .macro RESTORE_CONTEXT
+    addi    sp, sp, REGBYTES
     POP_8   s11
     csrw    sstatus, s11
     POP_8   s11
@@ -75,11 +77,10 @@
 rt_hw_context_switch_to:
     LOAD sp, (a0)
 
-    la s0, rt_current_thread
-    LOAD s1, (s0)
+    jal rt_thread_self
+    mv s1, a0
 
     #ifdef RT_USING_SMART
-        mv a0, s1
         jal lwp_aspace_switch
     #endif
 
@@ -103,11 +104,10 @@ rt_hw_context_switch:
     LOAD sp, (a1)
 
     // restore Address Space
-    la s0, rt_current_thread
-    LOAD s1, (s0)
+    jal rt_thread_self
+    mv s1, a0
 
     #ifdef RT_USING_SMART
-        mv a0, s1
         jal lwp_aspace_switch
     #endif
 
