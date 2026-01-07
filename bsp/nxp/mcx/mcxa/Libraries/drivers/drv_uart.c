@@ -6,12 +6,17 @@
  * Change Logs:
  * Date           Author       Notes
  * 2024-02-06     yandld       The first version for MCX
+ * 2024-11-11     hywing       add more UART channels
  */
 #include <rtdevice.h>
 #include "drv_uart.h"
 #include "fsl_lpuart.h"
 
 #ifdef RT_USING_SERIAL
+
+#define DBG_TAG    "drv.uart"
+#define DBG_LVL    DBG_INFO
+#include <rtdbg.h>
 
 struct mcx_uart
 {
@@ -35,6 +40,22 @@ void LPUART0_IRQHandler(void)
     uart_isr(&serial0);
 }
 #endif
+#if defined(BSP_USING_UART1)
+struct rt_serial_device serial1;
+
+void LPUART1_IRQHandler(void)
+{
+    uart_isr(&serial1);
+}
+#endif
+#if defined(BSP_USING_UART2)
+struct rt_serial_device serial2;
+
+void LPUART2_IRQHandler(void)
+{
+    uart_isr(&serial2);
+}
+#endif
 
 static const struct mcx_uart uarts[] =
 {
@@ -44,10 +65,46 @@ static const struct mcx_uart uarts[] =
         LPUART0,
         LPUART0_IRQn,
         kCLOCK_Fro12M,
+#if (defined(CPU_MCXA346VLH) || defined(CPU_MCXA346VLL) || defined(CPU_MCXA346VLQ) || defined(CPU_MCXA346VPN))
+        kFRO_LF_DIV_to_LPUART0,
+#else
         kFRO12M_to_LPUART0,
+#endif
         kCLOCK_GateLPUART0,
         kCLOCK_DivLPUART0,
         "uart0",
+    },
+#endif
+#ifdef BSP_USING_UART1
+    {
+        &serial1,
+        LPUART1,
+        LPUART1_IRQn,
+        kCLOCK_Fro12M,
+#if (defined(CPU_MCXA346VLH) || defined(CPU_MCXA346VLL) || defined(CPU_MCXA346VLQ) || defined(CPU_MCXA346VPN))
+        kFRO_LF_DIV_to_LPUART1,
+#else
+        kFRO12M_to_LPUART1,
+#endif
+        kCLOCK_GateLPUART1,
+        kCLOCK_DivLPUART1,
+        "uart1",
+    },
+#endif
+#ifdef BSP_USING_UART2
+    {
+        &serial2,
+        LPUART2,
+        LPUART2_IRQn,
+        kCLOCK_Fro12M,
+#if (defined(CPU_MCXA346VLH) || defined(CPU_MCXA346VLL) || defined(CPU_MCXA346VLQ) || defined(CPU_MCXA346VPN))
+        kFRO_LF_DIV_to_LPUART2,
+#else
+        kFRO12M_to_LPUART2,
+#endif
+        kCLOCK_GateLPUART2,
+        kCLOCK_DivLPUART2,
+        "uart2",
     },
 #endif
 };
@@ -125,7 +182,7 @@ static int mcx_getc(struct rt_serial_device *serial)
 {
     struct mcx_uart *uart = (struct mcx_uart *)serial->parent.user_data;
 
-    if (kLPUART_RxDataRegFullInterruptEnable & LPUART_GetStatusFlags(uart->uart_base))
+    if (kLPUART_RxDataRegFullFlag & LPUART_GetStatusFlags(uart->uart_base))
     {
         return LPUART_ReadByte(uart->uart_base);
     }

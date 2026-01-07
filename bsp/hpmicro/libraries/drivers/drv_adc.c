@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2023 HPMicro
+ * Copyright (c) 2021-2024 HPMicro
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -33,9 +33,13 @@ typedef struct
     adc_channel_state_t chn_state[16];
 }hpm_rtt_adc;
 
-
+#if defined(ADC12_SOC_MAX_CH_NUM)
+extern uint32_t rtt_board_init_adc12_clock(ADC16_Type *ptr);
+#endif
+extern uint32_t rtt_board_init_adc16_clock(ADC16_Type *ptr, bool clk_src_ahb);
 
 static uint32_t hpm_adc_init_clock(struct rt_adc_device *device);
+static void hpm_adc_init_pins(struct rt_adc_device *device);
 
 static rt_err_t hpm_adc_enabled(struct rt_adc_device *device, rt_int8_t channel, rt_bool_t enabled);
 static rt_err_t hpm_get_adc_value(struct rt_adc_device *device, rt_int8_t channel, rt_uint32_t *value);
@@ -112,15 +116,31 @@ static uint32_t hpm_adc_init_clock(struct rt_adc_device *device)
 #if defined(ADC12_SOC_MAX_CH_NUM)
     if (hpm_adc->is_adc12)
     {
-        clock_freq = board_init_adc12_clock((ADC12_Type*)hpm_adc->adc_base,true);
+        clock_freq = rtt_board_init_adc12_clock((ADC12_Type*)hpm_adc->adc_base,true);
     } else
 #endif
     {
-        clock_freq = board_init_adc16_clock((ADC16_Type*)hpm_adc->adc_base,true);
+        clock_freq = rtt_board_init_adc16_clock((ADC16_Type*)hpm_adc->adc_base,true);
     }
     return clock_freq;
 }
 
+static void hpm_adc_init_pins(struct rt_adc_device *device)
+{
+    hpm_rtt_adc *hpm_adc;
+    RT_ASSERT(device != RT_NULL);
+    hpm_adc = (hpm_rtt_adc *)device->parent.user_data;
+
+#if defined(ADC12_SOC_MAX_CH_NUM)
+    if (hpm_adc->is_adc12)
+    {
+        board_init_adc12_pins();
+    } else
+#endif
+    {
+        board_init_adc16_pins();
+    }
+}
 static rt_err_t init_adc_config(hpm_rtt_adc *adc)
 {
     hpm_stat_t ret;
@@ -208,6 +228,7 @@ static rt_err_t hpm_adc_enabled(struct rt_adc_device *device, rt_int8_t channel,
         {
             if (!hpm_adc->adc_enabled)
             {
+                hpm_adc_init_pins(device);
                 (void)hpm_adc_init_clock(device);
                 ret = init_adc_config(hpm_adc);
                 if (ret != RT_EOK) {
@@ -251,7 +272,6 @@ static rt_err_t hpm_get_adc_value(struct rt_adc_device *device, rt_int8_t channe
 #ifdef BSP_USING_ADC16
         hpm_stat_t status = adc16_get_oneshot_result((ADC16_Type *)hpm_adc->adc_base, adc_chn, &val);
         *value = val;
-       // rt_kprintf("%s, status=%d\n", __func__, status);
 #endif
     }
 

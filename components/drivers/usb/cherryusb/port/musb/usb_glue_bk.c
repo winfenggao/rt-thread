@@ -94,11 +94,11 @@
 #define NANENG_PHY_FC_REG1E (0x1E * 4)
 #define NANENG_PHY_FC_REG1F (0x1F * 4)
 
-#if CONFIG_USBDEV_EP_NUM != 8
+#if CONFIG_USB_MUSB_EP_NUM != 8
 #error beken chips only support 8 endpoints
 #endif
 
-#if CONFIG_USBHOST_PIPE_NUM != 8
+#if CONFIG_USB_MUSB_PIPE_NUM != 8
 #error beken chips only support 8 pipes
 #endif
 
@@ -275,6 +275,11 @@ void usb_dc_low_level_deinit(void)
     bk_int_isr_unregister(INT_SRC_USB);
     bk_analog_layer_usb_sys_related_ops(1, false);
     sys_drv_dev_clk_pwr_up(CLK_PWR_ID_USB_1, CLK_PWR_CTRL_PWR_DOWN);
+}
+
+void usbd_musb_delay_ms(uint8_t ms)
+{
+    /* implement later */
 }
 
 extern void USBH_IRQHandler(uint8_t busid);

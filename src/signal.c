@@ -30,7 +30,11 @@
 #define DBG_LVL     DBG_WARNING
 #include <rtdbg.h>
 
-#define sig_mask(sig_no)    (1u << sig_no)
+#ifdef RT_USING_MUSLLIBC
+    #define sig_mask(sig_no)    (1u << (sig_no - 1))
+#else
+    #define sig_mask(sig_no)    (1u << sig_no)
+#endif
 #define sig_valid(sig_no)   (sig_no >= 0 && sig_no < RT_SIG_MAX)
 
 static struct rt_spinlock _thread_signal_lock = RT_SPINLOCK_INIT;
@@ -72,9 +76,9 @@ static void _signal_entry(void *parameter)
     RT_SCHED_CTX(tid).stat &= ~RT_THREAD_STAT_SIGNAL;
 
 #ifdef RT_USING_SMP
-    rt_hw_context_switch_to((rt_base_t)&parameter, tid);
+    rt_hw_context_switch_to((rt_uintptr_t)&parameter, tid);
 #else
-    rt_hw_context_switch_to((rt_ubase_t)&(tid->sp));
+    rt_hw_context_switch_to((rt_uintptr_t)&(tid->sp));
 #endif /* RT_USING_SMP */
 }
 
@@ -365,10 +369,11 @@ int rt_signal_wait(const rt_sigset_t *set, rt_siginfo_t *si, rt_int32_t timeout)
     /* start timeout timer */
     if (timeout != RT_WAITING_FOREVER)
     {
+        rt_tick_t timeout_tick = timeout;
         /* reset the timeout of thread timer and start it */
         rt_timer_control(&(tid->thread_timer),
                          RT_TIMER_CTRL_SET_TIME,
-                         &timeout);
+                         &timeout_tick);
         rt_timer_start(&(tid->thread_timer));
     }
     rt_spin_unlock_irqrestore(&_thread_signal_lock, level);
@@ -495,6 +500,7 @@ void rt_thread_handle_sig(rt_bool_t clean_state)
             }
             else
             {
+                rt_spin_unlock_irqrestore(&_thread_signal_lock, level);
                 return;
             }
         }
@@ -573,6 +579,8 @@ void rt_thread_free_sig(rt_thread_t tid)
 }
 
 /**
+ * @ingroup group_thread_management
+ *
  * @brief    This function can be used to send any signal to any thread.
  *
  * @param    tid is a pointer to the thread that receives the signal.

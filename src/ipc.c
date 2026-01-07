@@ -63,7 +63,7 @@ extern void (*rt_object_put_hook)(struct rt_object *object);
 #endif /* RT_USING_HOOK */
 
 /**
- * @addtogroup IPC
+ * @addtogroup group_thread_comm
  * @{
  */
 
@@ -314,7 +314,7 @@ void rt_susp_list_print(rt_list_t *list)
 
 #ifdef RT_USING_SEMAPHORE
 /**
- * @addtogroup semaphore
+ * @addtogroup group_semaphore Semaphore
  * @{
  */
 
@@ -614,12 +614,13 @@ static rt_err_t _rt_sem_take(rt_sem_t sem, rt_int32_t timeout, int suspend_flag)
             /* has waiting time, start thread timer */
             if (timeout > 0)
             {
+                rt_tick_t timeout_tick = timeout;
                 LOG_D("set thread:%s to timer list", thread->parent.name);
 
                 /* reset the timeout of thread timer and start it */
                 rt_timer_control(&(thread->thread_timer),
                                  RT_TIMER_CTRL_SET_TIME,
-                                 &timeout);
+                                 &timeout_tick);
                 rt_timer_start(&(thread->thread_timer));
             }
 
@@ -769,7 +770,7 @@ rt_err_t rt_sem_control(rt_sem_t sem, int cmd, void *arg)
         rt_ubase_t value;
 
         /* get value */
-        value = (rt_ubase_t)arg;
+        value = (rt_uintptr_t)arg;
         level = rt_spin_lock_irqsave(&(sem->spinlock));
 
         /* resume all waiting thread */
@@ -787,7 +788,7 @@ rt_err_t rt_sem_control(rt_sem_t sem, int cmd, void *arg)
         rt_ubase_t max_value;
         rt_bool_t need_schedule = RT_FALSE;
 
-        max_value = (rt_uint16_t)((rt_ubase_t)arg);
+        max_value = (rt_uint16_t)((rt_uintptr_t)arg);
         if (max_value > RT_SEM_VALUE_MAX || max_value < 1)
         {
             return -RT_EINVAL;
@@ -945,28 +946,30 @@ static rt_bool_t _check_and_update_prio(rt_thread_t thread, rt_mutex_t mutex)
 static void _mutex_before_delete_detach(rt_mutex_t mutex)
 {
     rt_sched_lock_level_t slvl;
-    rt_bool_t need_schedule;
+    rt_bool_t need_schedule = RT_FALSE;
 
     rt_spin_lock(&(mutex->spinlock));
     /* wakeup all suspended threads */
     rt_susp_list_resume_all(&(mutex->parent.suspend_thread), RT_ERROR);
+
+    rt_sched_lock(&slvl);
+
     /* remove mutex from thread's taken list */
     rt_list_remove(&mutex->taken_list);
 
     /* whether change the thread priority */
     if (mutex->owner)
     {
-        rt_sched_lock(&slvl);
         need_schedule = _check_and_update_prio(mutex->owner, mutex);
+    }
 
-        if (need_schedule)
-        {
-            rt_sched_unlock_n_resched(slvl);
-        }
-        else
-        {
-            rt_sched_unlock(slvl);
-        }
+    if (need_schedule)
+    {
+        rt_sched_unlock_n_resched(slvl);
+    }
+    else
+    {
+        rt_sched_unlock(slvl);
     }
 
     /* unlock and do necessary reschedule if required */
@@ -974,7 +977,7 @@ static void _mutex_before_delete_detach(rt_mutex_t mutex)
 }
 
 /**
- * @addtogroup mutex
+ * @addtogroup group_mutex Mutex
  * @{
  */
 
@@ -1349,7 +1352,7 @@ static rt_err_t _rt_mutex_take(rt_mutex_t mutex, rt_int32_t timeout, int suspend
 
     if (mutex->owner == thread)
     {
-        if(mutex->hold < RT_MUTEX_HOLD_MAX)
+        if (mutex->hold < RT_MUTEX_HOLD_MAX)
         {
             /* it's the same thread */
             mutex->hold ++;
@@ -1431,13 +1434,14 @@ static rt_err_t _rt_mutex_take(rt_mutex_t mutex, rt_int32_t timeout, int suspend
                 /* has waiting time, start thread timer */
                 if (timeout > 0)
                 {
+                    rt_tick_t timeout_tick = timeout;
                     LOG_D("mutex_take: start the timer of thread:%s",
                           thread->parent.name);
 
                     /* reset the timeout of thread timer and start it */
                     rt_timer_control(&(thread->thread_timer),
                                      RT_TIMER_CTRL_SET_TIME,
-                                     &timeout);
+                                     &timeout_tick);
                     rt_timer_start(&(thread->thread_timer));
                 }
 
@@ -1448,13 +1452,13 @@ static rt_err_t _rt_mutex_take(rt_mutex_t mutex, rt_int32_t timeout, int suspend
 
                 rt_spin_lock(&(mutex->spinlock));
 
-                if (thread->error == RT_EOK)
+                if (mutex->owner == thread)
                 {
                     /**
                      * get mutex successfully
                      * Note: assert to avoid an unexpected resume
                      */
-                    RT_ASSERT(mutex->owner == thread);
+                    RT_ASSERT(thread->error == RT_EOK);
                 }
                 else
                 {
@@ -1465,6 +1469,12 @@ static rt_err_t _rt_mutex_take(rt_mutex_t mutex, rt_int32_t timeout, int suspend
 
                     /* get value first before calling to other APIs */
                     ret = thread->error;
+
+                    /* unexpected resume */
+                    if (ret == RT_EOK)
+                    {
+                        ret = -RT_EINTR;
+                    }
 
                     rt_sched_lock(&slvl);
 
@@ -1617,10 +1627,10 @@ rt_err_t rt_mutex_release(rt_mutex_t mutex)
     /* if no hold */
     if (mutex->hold == 0)
     {
+        rt_sched_lock(&slvl);
+
         /* remove mutex from thread's taken list */
         rt_list_remove(&mutex->taken_list);
-
-        rt_sched_lock(&slvl);
 
         /* whether change the thread priority */
         need_schedule = _check_and_update_prio(thread, mutex);
@@ -1737,7 +1747,7 @@ RTM_EXPORT(rt_mutex_control);
 
 #ifdef RT_USING_EVENT
 /**
- * @addtogroup event
+ * @addtogroup group_event Event
  * @{
  */
 
@@ -2178,10 +2188,11 @@ static rt_err_t _rt_event_recv(rt_event_t   event,
         /* if there is a waiting timeout, active thread timer */
         if (timeout > 0)
         {
+            rt_tick_t timeout_tick = timeout;
             /* reset the timeout of thread timer and start it */
             rt_timer_control(&(thread->thread_timer),
                              RT_TIMER_CTRL_SET_TIME,
-                             &timeout);
+                             &timeout_tick);
             rt_timer_start(&(thread->thread_timer));
         }
 
@@ -2290,7 +2301,7 @@ RTM_EXPORT(rt_event_control);
 
 #ifdef RT_USING_MAILBOX
 /**
- * @addtogroup mailbox
+ * @addtogroup group_mailbox MailBox
  * @{
  */
 
@@ -2613,6 +2624,7 @@ static rt_err_t _rt_mb_send_wait(rt_mailbox_t mb,
         /* has waiting time, start thread timer */
         if (timeout > 0)
         {
+            rt_tick_t timeout_tick = timeout;
             /* get the start tick of timer */
             tick_delta = rt_tick_get();
 
@@ -2622,7 +2634,7 @@ static rt_err_t _rt_mb_send_wait(rt_mailbox_t mb,
             /* reset the timeout of thread timer and start it */
             rt_timer_control(&(thread->thread_timer),
                              RT_TIMER_CTRL_SET_TIME,
-                             &timeout);
+                             &timeout_tick);
             rt_timer_start(&(thread->thread_timer));
         }
         rt_spin_unlock_irqrestore(&(mb->spinlock), level);
@@ -2893,6 +2905,7 @@ static rt_err_t _rt_mb_recv(rt_mailbox_t mb, rt_ubase_t *value, rt_int32_t timeo
         /* has waiting time, start thread timer */
         if (timeout > 0)
         {
+            rt_tick_t timeout_tick = timeout;
             /* get the start tick of timer */
             tick_delta = rt_tick_get();
 
@@ -2902,7 +2915,7 @@ static rt_err_t _rt_mb_recv(rt_mailbox_t mb, rt_ubase_t *value, rt_int32_t timeo
             /* reset the timeout of thread timer and start it */
             rt_timer_control(&(thread->thread_timer),
                              RT_TIMER_CTRL_SET_TIME,
-                             &timeout);
+                             &timeout_tick);
             rt_timer_start(&(thread->thread_timer));
         }
 
@@ -3035,7 +3048,7 @@ RTM_EXPORT(rt_mb_control);
 
 #ifdef RT_USING_MESSAGEQUEUE
 /**
- * @addtogroup messagequeue
+ * @addtogroup group_messagequeue Message Queue
  * @{
  */
 
@@ -3438,6 +3451,7 @@ static rt_err_t _rt_mq_send_wait(rt_mq_t mq,
         /* has waiting time, start thread timer */
         if (timeout > 0)
         {
+            rt_tick_t timeout_tick = timeout;
             /* get the start tick of timer */
             tick_delta = rt_tick_get();
 
@@ -3447,7 +3461,7 @@ static rt_err_t _rt_mq_send_wait(rt_mq_t mq,
             /* reset the timeout of thread timer and start it */
             rt_timer_control(&(thread->thread_timer),
                              RT_TIMER_CTRL_SET_TIME,
-                             &timeout);
+                             &timeout_tick);
             rt_timer_start(&(thread->thread_timer));
         }
 
@@ -3817,6 +3831,7 @@ static rt_ssize_t _rt_mq_recv(rt_mq_t mq,
         /* has waiting time, start thread timer */
         if (timeout > 0)
         {
+            rt_tick_t timeout_tick = timeout;
             /* get the start tick of timer */
             tick_delta = rt_tick_get();
 
@@ -3826,7 +3841,7 @@ static rt_ssize_t _rt_mq_recv(rt_mq_t mq,
             /* reset the timeout of thread timer and start it */
             rt_timer_control(&(thread->thread_timer),
                              RT_TIMER_CTRL_SET_TIME,
-                             &timeout);
+                             &timeout_tick);
             rt_timer_start(&(thread->thread_timer));
         }
 

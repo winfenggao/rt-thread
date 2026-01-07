@@ -1,4 +1,6 @@
 *.pyc
+**/Cargo.lock
+**/target/
 *.map
 *.dblite
 *.elf
@@ -11,8 +13,10 @@
 *.ilk
 *.old
 *.crf
+*.dtb*
 build
 Debug
+.vs
 rtthread
 settings
 documentation/html
@@ -43,6 +47,7 @@ ncscope.*
 tags
 
 .idea
+**/.cache/
 .vscode
 *.code-workspace
 *.eide.*
@@ -54,3 +59,14 @@ cmake-build-debug
 # vDSO
 vdso_sys.os
 vdso.lds
+
+# cherryusb libraries
+!components/drivers/usb/cherryusb/port/pusb2/*.a
+!components/drivers/usb/cherryusb/port/xhci/phytium/*.a
+
+# stm32cubemx
+**/CubeMX_Config/Drivers/
+**/CubeMX_Config/MDK-ARM/
+
+# mac
+.DS_Store

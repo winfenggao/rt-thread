@@ -26,21 +26,27 @@ on:
       - '**/*.c'
       - '**/*.h'
       - '**/*.cpp'
+  workflow_dispatch:
+  repository_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     name: Tools
-    if: github.repository_owner == 'RT-Thread' && false
+    if: github.repository_owner == 'RT-Thread'
     strategy:
       fail-fast: false
     env:
       TEST_BSP_ROOT: bsp/stm32/stm32f407-atk-explorer
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@main
 
     - name: Install Tools
       shell: bash
@@ -60,7 +66,14 @@ jobs:
 
     - name: Build Tools
       run: |
-        scons --pyconfig-silent -C $TEST_BSP_ROOT
+        source ~/.env/env.sh
+        scons --pyconfig-silent -C $TEST_BSP_ROOT 2>menuconfig.log
+        cat menuconfig.log
+        if grep -q "warning:" menuconfig.log; then
+          echo "Errors found in menuconfig, failing the build."
+          exit 1
+        fi
+        pushd $TEST_BSP_ROOT && pkgs --update && popd
         scons -j$(nproc) -C $TEST_BSP_ROOT
 
     - name: Project generate Tools

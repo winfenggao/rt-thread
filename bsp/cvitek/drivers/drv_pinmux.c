@@ -116,7 +116,10 @@ struct fmux pinmux_array[] = {
     FS_PINMUX(SD1_CLK),
     FS_PINMUX(PWM0_BUCK),
     FS_PINMUX(ADC1),
+    FS_PINMUX(PKG_TYPE0),
     FS_PINMUX(USB_VBUS_DET),
+    FS_PINMUX(PKG_TYPE1),
+    FS_PINMUX(PKG_TYPE2),
     FS_PINMUX(MUX_SPI1_MISO),
     FS_PINMUX(MUX_SPI1_MOSI),
     FS_PINMUX(MUX_SPI1_CS),
@@ -142,9 +145,6 @@ struct fmux pinmux_array[] = {
     FS_PINMUX(PAD_MIPI_TXP1),
     FS_PINMUX(PAD_MIPI_TXM0),
     FS_PINMUX(PAD_MIPI_TXP0),
-    FS_PINMUX(PKG_TYPE0),
-    FS_PINMUX(PKG_TYPE1),
-    FS_PINMUX(PKG_TYPE2),
     FS_PINMUX(PAD_AUD_AINL_MIC),
     FS_PINMUX(PAD_AUD_AINR_MIC),
     FS_PINMUX(PAD_AUD_AOUTL),
@@ -230,7 +230,7 @@ const struct fselect pin_selects_array[][8] = {
 /* PAD_AUD_AOUTR    */ {FS_NONE,             FS_NONE,            FS_NONE,           {XGPIOC_24, 3},   {IIS1_DI, 4},   {IIS2_DO, 5},     {IIS1_DO, 6},           FS_NONE},
 };
 
-#elif defined(SOC_TYPE_SG2002)
+#elif defined(SOC_TYPE_SG2002) || defined(SOC_TYPE_SG2000)
 
 struct fmux pinmux_array[] = {
     FS_PINMUX(CAM_MCLK0),

@@ -7,11 +7,11 @@
 #include "stdint.h"
 #include "usb_musb_reg.h"
 
-#if CONFIG_USBDEV_EP_NUM != 6
+#if CONFIG_USB_MUSB_EP_NUM != 6
 #error es32 chips only support 6 endpoints
 #endif
 
-#if CONFIG_USBHOST_PIPE_NUM != 6
+#if CONFIG_USB_MUSB_PIPE_NUM != 6
 #error es32 chips only support 6 pipes
 #endif
 
@@ -50,4 +50,9 @@ uint8_t usbh_get_musb_fifo_cfg(struct musb_fifo_cfg **cfg)
 uint32_t usb_get_musb_ram_size(void)
 {
     return 4096;
+}
+
+void usbd_musb_delay_ms(uint8_t ms)
+{
+    /* implement later */
 }

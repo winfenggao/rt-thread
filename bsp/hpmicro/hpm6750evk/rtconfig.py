@@ -3,10 +3,20 @@
 
 import os
 import sys
+import rtconfig
+
+
+if os.getenv('RTT_ROOT'):
+    RTT_ROOT = os.getenv('RTT_ROOT')
+else:
+    RTT_ROOT = os.path.normpath(os.getcwd() + '/../../..')
+
+sys.path = sys.path + [os.path.join(RTT_ROOT, 'tools')]
 
 # toolchains options
 ARCH='risc-v'
 CPU='hpmicro'
+SOC_FAMILY='HPM6700'
 CHIP_NAME='HPM6750'
 
 CROSS_TOOL='gcc'
@@ -44,6 +54,8 @@ if  CROSS_TOOL == 'gcc':
     PLATFORM    = 'gcc'
     if os.getenv('RTT_RISCV_TOOLCHAIN'):
         EXEC_PATH = os.getenv('RTT_RISCV_TOOLCHAIN')
+    elif RTT_EXEC_PATH:
+        EXEC_PATH = RTT_EXEC_PATH
     else:
         EXEC_PATH   = r'/opt/riscv-gnu-gcc/bin'
 else:
@@ -79,27 +91,27 @@ if PLATFORM == 'gcc':
         AFLAGS += ' -gdwarf-2'
         CFLAGS += ' -O0'
         LFLAGS += ' -O0'
-        LINKER_FILE = 'board/linker_scripts/ram_rtt.ld'
+        LINKER_FILE = 'board/linker_scripts/gcc/ram_rtt.ld'
     elif BUILD == 'ram_release':
         CFLAGS += ' -O2'
         LFLAGS += ' -O2'
-        LINKER_FILE = 'board/linker_scripts/ram_rtt.ld'
+        LINKER_FILE = 'board/linker_scripts/gcc/ram_rtt.ld'
     elif BUILD == 'flash_debug':
         CFLAGS += ' -gdwarf-2'
         AFLAGS += ' -gdwarf-2'
         CFLAGS += ' -O0'
         LFLAGS += ' -O0'
         CFLAGS += ' -DFLASH_XIP=1'
-        LINKER_FILE = 'board/linker_scripts/flash_rtt.ld'
+        LINKER_FILE = 'board/linker_scripts/gcc/flash_rtt.ld'
     elif BUILD == 'flash_release':
         CFLAGS += ' -O2'
         LFLAGS += ' -O2'
         CFLAGS += ' -DFLASH_XIP=1'
-        LINKER_FILE = 'board/linker_scripts/flash_rtt.ld'
+        LINKER_FILE = 'board/linker_scripts/gcc/flash_rtt.ld'
     else:
         CFLAGS += ' -O2'
         LFLAGS += ' -O2'
-        LINKER_FILE = 'board/linker_scripts/flash_rtt.ld'
+        LINKER_FILE = 'board/linker_scripts/gcc/flash_rtt.ld'
     LFLAGS += ' -T ' + LINKER_FILE
 
     POST_ACTION = OBJCPY + ' -O binary $TARGET rtthread.bin\n' + SIZE + ' $TARGET \n'
@@ -107,3 +119,10 @@ if PLATFORM == 'gcc':
     # module setting
     CXXFLAGS = CFLAGS +  ' -Woverloaded-virtual -fno-exceptions -fno-rtti '
     CFLAGS = CFLAGS + ' -std=gnu11'
+
+def dist_handle(BSP_ROOT, dist_dir):
+    import sys
+    cwd_path = os.getcwd()
+    sys.path.append(os.path.join(os.path.dirname(BSP_ROOT), 'tools'))
+    from sdk_dist import dist_do_building
+    dist_do_building(BSP_ROOT, dist_dir)

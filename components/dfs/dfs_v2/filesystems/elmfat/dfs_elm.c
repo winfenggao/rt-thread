@@ -319,8 +319,8 @@ int dfs_elm_mkfs(rt_device_t dev_id, const char *fs_name)
     /* check flag status, we need clear the temp driver stored in disk[] */
     if (flag == FSM_STATUS_USE_TEMP_DRIVER)
     {
-        rt_free(fat);
         f_mount(RT_NULL, logic_nbr, (BYTE)index);
+        rt_free(fat);
         disk[index] = RT_NULL;
         /* close device */
         rt_device_close(dev_id);
@@ -629,7 +629,7 @@ int dfs_elm_flush(struct dfs_file *file)
 off_t dfs_elm_lseek(struct dfs_file *file, off_t offset, int wherece)
 {
     FRESULT result = FR_OK;
-
+    off_t pos = 0;
     switch (wherece)
     {
     case SEEK_SET:
@@ -656,11 +656,12 @@ off_t dfs_elm_lseek(struct dfs_file *file, off_t offset, int wherece)
         RT_ASSERT(fd != RT_NULL);
         rt_mutex_take(&file->vnode->lock, RT_WAITING_FOREVER);
         result = f_lseek(fd, offset);
+        pos = fd->fptr;
         rt_mutex_release(&file->vnode->lock);
         if (result == FR_OK)
         {
             /* return current position */
-            return fd->fptr;
+            return pos;
         }
     }
     else if (file->vnode->type == FT_DIRECTORY)
@@ -783,7 +784,7 @@ int dfs_elm_unlink(struct dfs_dentry *dentry)
     rt_snprintf(drivers_fn, 256, "%d:%s", vol, dentry->pathname);
 #else
     const char *drivers_fn;
-    drivers_fn = path;
+    drivers_fn = dentry->pathname;
 #endif
 
     result = f_unlink(drivers_fn);

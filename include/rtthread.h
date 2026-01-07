@@ -49,11 +49,6 @@ extern "C" {
 int entry(void);
 #endif
 
-/**
- * @addtogroup KernelObject
- * @{
- */
-
 /*
  * kernel object interface
  */
@@ -87,10 +82,8 @@ void rt_object_take_sethook(void (*hook)(struct rt_object *object));
 void rt_object_put_sethook(void (*hook)(struct rt_object *object));
 #endif /* RT_USING_HOOK */
 
-/**@}*/
-
 /**
- * @addtogroup Clock
+ * @addtogroup group_clock_management
  * @{
  */
 
@@ -98,6 +91,7 @@ void rt_object_put_sethook(void (*hook)(struct rt_object *object));
  * clock & timer interface
  */
 rt_tick_t rt_tick_get(void);
+rt_tick_t rt_tick_get_delta(rt_tick_t base);
 void rt_tick_set(rt_tick_t tick);
 void rt_tick_increase(void);
 void rt_tick_increase_tick(rt_tick_t tick);
@@ -137,11 +131,6 @@ void rt_timer_exit_sethook(void (*hook)(struct rt_timer *timer));
 
 /**@}*/
 
-/**
- * @addtogroup Thread
- * @{
- */
-
 /*
  * thread interface
  */
@@ -180,6 +169,9 @@ rt_err_t rt_thread_wakeup(rt_thread_t thread);
 void rt_thread_wakeup_set(struct rt_thread *thread, rt_wakeup_func_t func, void* user_data);
 #endif /* RT_USING_SMART */
 rt_err_t rt_thread_get_name(rt_thread_t thread, char *name, rt_uint8_t name_size);
+#ifdef RT_USING_CPU_USAGE_TRACER
+rt_uint8_t rt_thread_get_usage(rt_thread_t thread);
+#endif /* RT_USING_CPU_USAGE_TRACER */
 #ifdef RT_USING_SIGNALS
 void rt_thread_alloc_sig(rt_thread_t tid);
 void rt_thread_free_sig(rt_thread_t tid);
@@ -190,6 +182,8 @@ void rt_thread_suspend_sethook(void (*hook)(rt_thread_t thread));
 void rt_thread_resume_sethook (void (*hook)(rt_thread_t thread));
 
 /**
+ * @ingroup group_thread_management
+ *
  * @brief Sets a hook function when a thread is initialized.
  *
  * @param thread is the target thread that initializing
@@ -204,6 +198,22 @@ RT_OBJECT_HOOKLIST_DECLARE(rt_thread_inited_hookproto_t, rt_thread_inited);
  */
 void rt_thread_idle_init(void);
 #if defined(RT_USING_HOOK) || defined(RT_USING_IDLE_HOOK)
+// FIXME: Have to write doxygen comment here for rt_thread_idle_sethook
+//        but not in src/idle.c. Because the `rt_align(RT_ALIGN_SIZE)` in src/idle.c
+//        will make doxygen building failed.
+/**
+ * @ingroup group_thread_management
+ *
+ * @brief This function sets a hook function to idle thread loop. When the system performs
+ *        idle loop, this hook function should be invoked.
+ *
+ * @param hook the specified hook function.
+ *
+ * @return `RT_EOK`: set OK.
+ *         `-RT_EFULL`: hook list is full.
+ *
+ * @note the hook function must be simple and never be blocked or suspend.
+ */
 rt_err_t rt_thread_idle_sethook(void (*hook)(void));
 rt_err_t rt_thread_idle_delhook(void (*hook)(void));
 #endif /* defined(RT_USING_HOOK) || defined(RT_USING_IDLE_HOOK) */
@@ -235,6 +245,7 @@ void rt_exit_critical_safe(rt_base_t critical_level);
 rt_uint16_t rt_critical_level(void);
 
 #ifdef RT_USING_HOOK
+void rt_scheduler_stack_overflow_sethook(rt_err_t (*hook)(struct rt_thread *thread));
 void rt_scheduler_sethook(void (*hook)(rt_thread_t from, rt_thread_t to));
 void rt_scheduler_switch_sethook(void (*hook)(struct rt_thread *tid));
 #endif /* RT_USING_HOOK */
@@ -244,15 +255,14 @@ void rt_secondary_cpu_entry(void);
 void rt_scheduler_ipi_handler(int vector, void *param);
 #endif /* RT_USING_SMP */
 
-/**@}*/
-
 /**
- * @addtogroup Signal
+ * @addtogroup group_signal
  * @{
  */
 #ifdef RT_USING_SIGNALS
 void rt_signal_mask(int signo);
 void rt_signal_unmask(int signo);
+void *rt_signal_check(void* context);
 rt_sighandler_t rt_signal_install(int signo, rt_sighandler_t handler);
 int rt_signal_wait(const rt_sigset_t *set, rt_siginfo_t *si, rt_int32_t timeout);
 int rt_system_signal_init(void);
@@ -260,7 +270,7 @@ int rt_system_signal_init(void);
 /**@}*/
 
 /**
- * @addtogroup MM
+ * @addtogroup group_memory_management
  * @{
  */
 
@@ -316,7 +326,7 @@ void rt_page_free(void *addr, rt_size_t npages);
 #endif /* defined(RT_USING_SLAB) && defined(RT_USING_SLAB_AS_HEAP) */
 
 /**
- * @ingroup Hook
+ * @ingroup group_hook
  * @{
  */
 
@@ -386,7 +396,7 @@ void rt_slab_free(rt_slab_t m, void *ptr);
 /**@}*/
 
 /**
- * @addtogroup IPC
+ * @addtogroup group_thread_comm
  * @{
  */
 
@@ -411,7 +421,7 @@ rt_err_t rt_thread_suspend_to_list(rt_thread_t thread, rt_list_t *susp_list, int
 rt_err_t rt_susp_list_enqueue(rt_list_t *susp_list, rt_thread_t thread, int ipc_flags);
 
 /**
- * @addtogroup semaphore
+ * @addtogroup group_semaphore Semaphore
  * @{
  */
 
@@ -440,7 +450,7 @@ rt_err_t rt_sem_control(rt_sem_t sem, int cmd, void *arg);
 /**@}*/
 
 /**
- * @addtogroup mutex
+ * @addtogroup group_mutex Mutex
  * @{
  */
 
@@ -479,7 +489,7 @@ rt_inline rt_ubase_t rt_mutex_get_hold(rt_mutex_t mutex)
 /**@}*/
 
 /**
- * @addtogroup event
+ * @addtogroup group_event Event
  * @{
  */
 
@@ -516,7 +526,7 @@ rt_err_t rt_event_control(rt_event_t event, int cmd, void *arg);
 /**@}*/
 
 /**
- * @addtogroup mailbox
+ * @addtogroup group_mailbox MailBox
  * @{
  */
 
@@ -557,7 +567,7 @@ rt_err_t rt_mb_control(rt_mailbox_t mb, int cmd, void *arg);
 /**@}*/
 
 /**
- * @addtogroup messagequeue
+ * @addtogroup group_messagequeue Message Queue
  * @{
  */
 #ifdef RT_USING_MESSAGEQUEUE
@@ -641,8 +651,10 @@ rt_ssize_t rt_mq_recv_prio(rt_mq_t mq,
 /**@}*/
 
 /* defunct */
+void rt_thread_defunct_init(void);
 void rt_thread_defunct_enqueue(rt_thread_t thread);
 rt_thread_t rt_thread_defunct_dequeue(void);
+void rt_defunct_execute(void);
 
 /*
  * spinlock
@@ -659,7 +671,7 @@ void rt_spin_unlock_irqrestore(struct rt_spinlock *lock, rt_base_t level);
 
 #ifdef RT_USING_DEVICE
 /**
- * @addtogroup Device
+ * @addtogroup group_device_driver
  * @{
  */
 
@@ -711,6 +723,10 @@ rt_err_t  rt_device_control(rt_device_t dev, int cmd, void *arg);
 void rt_interrupt_enter(void);
 void rt_interrupt_leave(void);
 
+void rt_interrupt_context_push(rt_interrupt_context_t this_ctx);
+void rt_interrupt_context_pop(void);
+void *rt_interrupt_context_get(void);
+
 /**
  * CPU object
  */
@@ -754,7 +770,7 @@ void rt_components_board_init(void);
 #endif /* RT_USING_COMPONENTS_INIT */
 
 /**
- * @addtogroup KernelService
+ * @addtogroup group_kernel_service
  * @{
  */
 
@@ -787,6 +803,8 @@ rt_device_t rt_console_get_device(void);
 #endif /* defined(RT_USING_DEVICE) && defined(RT_USING_CONSOLE) */
 
 int __rt_ffs(int value);
+unsigned long __rt_ffsl(unsigned long value);
+unsigned long __rt_clz(unsigned long value);
 
 void rt_show_version(void);
 
@@ -801,7 +819,7 @@ if (!(EX))                                                                    \
     rt_assert_handler(#EX, __FUNCTION__, __LINE__);                           \
 }
 #else
-#define RT_ASSERT(EX)
+#define RT_ASSERT(EX) {RT_UNUSED(EX);}
 #endif /* RT_DEBUGING_ASSERT */
 
 #ifdef RT_DEBUGING_CONTEXT

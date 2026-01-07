@@ -54,7 +54,7 @@
 #endif
 
 /**
- * @addtogroup KernelService
+ * @addtogroup group_kernel_service
  * @{
  */
 
@@ -93,8 +93,8 @@ rt_weak void rt_hw_cpu_shutdown(void)
 
 #ifdef __GNUC__
     #define RT_HW_BACKTRACE_FRAME_GET_SELF(frame) do {          \
-        (frame)->fp = (rt_base_t)__builtin_frame_address(0U);   \
-        (frame)->pc = ({__label__ pc; pc: (rt_base_t)&&pc;});   \
+        (frame)->fp = (rt_uintptr_t)__builtin_frame_address(0U);   \
+        (frame)->pc = ({__label__ pc; pc: (rt_uintptr_t)&&pc;});   \
     } while (0)
 
 #else
@@ -187,23 +187,15 @@ RTM_EXPORT(rt_console_get_device);
  */
 rt_device_t rt_console_set_device(const char *name)
 {
-    rt_device_t new_device, old_device;
+    rt_device_t old_device = _console_device;
+    rt_device_t new_device = rt_device_find(name);
 
-    /* save old device */
-    old_device = _console_device;
-
-    /* find new console device */
-    new_device = rt_device_find(name);
-
-    /* check whether it's a same device */
-    if (new_device == old_device) return RT_NULL;
-
-    if (new_device != RT_NULL)
+    if (new_device != RT_NULL && new_device != old_device)
     {
-        if (_console_device != RT_NULL)
+        if (old_device != RT_NULL)
         {
             /* close old console device */
-            rt_device_close(_console_device);
+            rt_device_close(old_device);
         }
 
         /* set new console device */
@@ -319,20 +311,23 @@ static void _console_release(void)
  */
 static void _kputs(const char *str, long len)
 {
-    RT_UNUSED(len);
+#ifdef RT_USING_DEVICE
+    rt_device_t console_device = rt_console_get_device();
+#endif /* RT_USING_DEVICE */
 
     CONSOLE_TAKE;
 
 #ifdef RT_USING_DEVICE
-    if (_console_device == RT_NULL)
+    if (console_device == RT_NULL)
     {
         rt_hw_console_output(str);
     }
     else
     {
-        rt_device_write(_console_device, 0, str, len);
+        rt_device_write(console_device, 0, str, len);
     }
 #else
+    RT_UNUSED(len);
     rt_hw_console_output(str);
 #endif /* RT_USING_DEVICE */
 
@@ -422,7 +417,7 @@ rt_weak rt_err_t rt_backtrace_frame(rt_thread_t thread, struct rt_hw_backtrace_f
 {
     long nesting = 0;
 
-    rt_kprintf("please use: addr2line -e rtthread.elf -a -f");
+    rt_kprintf("please use: addr2line -e rtthread.elf -a -f\n");
 
     while (nesting < RT_BACKTRACE_LEVEL_MAX_NR)
     {
@@ -446,9 +441,9 @@ rt_weak rt_err_t rt_backtrace_frame(rt_thread_t thread, struct rt_hw_backtrace_f
  */
 rt_weak rt_err_t rt_backtrace_formatted_print(rt_ubase_t *buffer, long buflen)
 {
-    rt_kprintf("please use: addr2line -e rtthread.elf -a -f");
+    rt_kprintf("please use: addr2line -e rtthread.elf -a -f\n");
 
-    for (size_t i = 0; i < buflen && buffer[i] != 0; i++)
+    for (rt_size_t i = 0; i < buflen && buffer[i] != 0; i++)
     {
         rt_kprintf(" 0x%lx", (rt_ubase_t)buffer[i]);
     }
@@ -540,12 +535,59 @@ rt_err_t rt_backtrace_thread(rt_thread_t thread)
     return rc;
 }
 
+#ifdef RT_USING_CPU_USAGE_TRACER
+/**
+ * @brief Get thread usage percentage relative to total system CPU time
+ *
+ * This function calculates the CPU usage percentage of a specific thread
+ * relative to the total CPU time consumed by all threads in the system.
+ *
+ * @param thread Pointer to the thread object. Must not be NULL.
+ *
+ * @return The CPU usage percentage as an integer value (0-100).
+ *         Returns 0 if total system time is 0 or if CPU usage tracing is not enabled.
+ *
+ * @note This function requires RT_USING_CPU_USAGE_TRACER to be enabled.
+ * @note The percentage is calculated as: (thread_time * 100) / total_system_time
+ * @note Due to integer arithmetic, the result is truncated and may not sum
+ *       to exactly 100% across all threads due to rounding.
+ * @note If thread is NULL, an assertion will be triggered in debug builds.
+ */
+rt_uint8_t rt_thread_get_usage(rt_thread_t thread)
+{
+    rt_ubase_t thread_time;
+    rt_ubase_t total_time = 0U;
+    int i;
+    rt_cpu_t pcpu;
+
+    RT_ASSERT(thread != RT_NULL);
+
+    thread_time = thread->user_time + thread->system_time;
+
+    /* Calculate total system time by summing all CPUs' time */
+    for (i = 0; i < RT_CPUS_NR; i++)
+    {
+        pcpu = rt_cpu_index(i);
+        total_time += pcpu->cpu_stat.user + pcpu->cpu_stat.system + pcpu->cpu_stat.idle;
+    }
+
+    if (total_time > 0U)
+    {
+        /* Calculate thread usage percentage: (thread_time * 100) / total_time */
+        rt_ubase_t usage = (thread_time * 100U) / total_time;
+        return (rt_uint8_t)(usage > 100U ? 100U : usage);
+    }
+
+    return 0U;
+}
+#endif /* RT_USING_CPU_USAGE_TRACER */
+
 #if defined(RT_USING_LIBC) && defined(RT_USING_FINSH)
 #include <stdlib.h> /* for string service */
 
 static void cmd_backtrace(int argc, char** argv)
 {
-    rt_ubase_t pid;
+    rt_uintptr_t pid;
     char *end_ptr;
 
     if (argc != 2)
@@ -594,7 +636,7 @@ static void (*rt_realloc_exit_hook)(void **ptr, rt_size_t size);
 static void (*rt_free_hook)(void **ptr);
 
 /**
- * @ingroup Hook
+ * @ingroup group_hook
  * @{
  */
 
@@ -778,8 +820,8 @@ rt_inline void _slab_info(rt_size_t *total,
  */
 void rt_system_heap_init_generic(void *begin_addr, void *end_addr)
 {
-    rt_ubase_t begin_align = RT_ALIGN((rt_ubase_t)begin_addr, RT_ALIGN_SIZE);
-    rt_ubase_t end_align   = RT_ALIGN_DOWN((rt_ubase_t)end_addr, RT_ALIGN_SIZE);
+    rt_uintptr_t begin_align = RT_ALIGN((rt_uintptr_t)begin_addr, RT_ALIGN_SIZE);
+    rt_uintptr_t end_align   = RT_ALIGN_DOWN((rt_uintptr_t)end_addr, RT_ALIGN_SIZE);
 
     RT_ASSERT(end_align > begin_align);
 
@@ -988,17 +1030,17 @@ rt_weak void *rt_malloc_align(rt_size_t size, rt_size_t align)
     if (ptr != RT_NULL)
     {
         /* the allocated memory block is aligned */
-        if (((rt_ubase_t)ptr & (align - 1)) == 0)
+        if (((rt_uintptr_t)ptr & (align - 1)) == 0)
         {
-            align_ptr = (void *)((rt_ubase_t)ptr + align);
+            align_ptr = (void *)((rt_uintptr_t)ptr + align);
         }
         else
         {
-            align_ptr = (void *)(((rt_ubase_t)ptr + (align - 1)) & ~(align - 1));
+            align_ptr = (void *)(((rt_uintptr_t)ptr + (align - 1)) & ~(align - 1));
         }
 
         /* set the pointer before alignment pointer to the real pointer */
-        *((rt_ubase_t *)((rt_ubase_t)align_ptr - sizeof(void *))) = (rt_ubase_t)ptr;
+        *((rt_uintptr_t *)((rt_uintptr_t)align_ptr - sizeof(void *))) = (rt_uintptr_t)ptr;
 
         ptr = align_ptr;
     }
@@ -1019,7 +1061,7 @@ rt_weak void rt_free_align(void *ptr)
 
     /* NULL check */
     if (ptr == RT_NULL) return;
-    real_ptr = (void *) * (rt_ubase_t *)((rt_ubase_t)ptr - sizeof(void *));
+    real_ptr = (void *) * (rt_uintptr_t *)((rt_uintptr_t)ptr - sizeof(void *));
     rt_free(real_ptr);
 }
 RTM_EXPORT(rt_free_align);

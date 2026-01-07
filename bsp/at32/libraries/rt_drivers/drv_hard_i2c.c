@@ -6,6 +6,7 @@
  * Change Logs:
  * Date           Author       Notes
  * 2024-07-31     shelton      first version
+ * 2024-12-18     shelton      add support f455/f456 and f457
  */
 
 #include "drv_common.h"
@@ -73,7 +74,9 @@ static rt_err_t at32_i2c_configure(struct rt_i2c_bus_device *bus)
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
     i2c_init(instance->handle->i2c_x, 0x0F, instance->handle->timing);
 #endif
     i2c_own_address1_set(instance->handle->i2c_x, I2C_ADDRESS_MODE_7BIT, HWI2C_OWN_ADDRESS);
@@ -101,7 +104,9 @@ static void i2c_dma_config(struct at32_i2c_handle *handle, rt_uint8_t *buffer, r
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
         dma->dma_channel->paddr = (rt_uint32_t)&(handle->i2c_x->txdt);
 #endif
     }
@@ -116,7 +121,9 @@ static void i2c_dma_config(struct at32_i2c_handle *handle, rt_uint8_t *buffer, r
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
         dma->dma_channel->paddr = (rt_uint32_t)&(handle->i2c_x->rxdt);
 #endif
     }
@@ -136,7 +143,9 @@ static void i2c_dma_config(struct at32_i2c_handle *handle, rt_uint8_t *buffer, r
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
 void i2c_refresh_txdt_register(i2c_type *i2c_x)
 {
     /* clear tdis flag */
@@ -231,7 +240,9 @@ i2c_status_type i2c_wait_flag(struct at32_i2c_handle *handle, uint32_t flag, uin
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
                     i2c_reset_ctrl2_register(handle->i2c_x);
 #endif
                     handle->comm.error_code = I2C_ERR_STOP;
@@ -735,7 +746,9 @@ void i2c_evt_isr(struct at32_i2c_handle *handle)
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
 void i2c_start_transfer(struct at32_i2c_handle *handle, uint16_t address, i2c_start_mode_type start)
 {
     if (handle->comm.pcount > MAX_TRANSFER_CNT)
@@ -1226,7 +1239,10 @@ static void at32_i2c_dma_init(struct at32_i2c *instance)
 #endif
 #if defined (SOC_SERIES_AT32F435) || defined (SOC_SERIES_AT32F437) || \
     defined (SOC_SERIES_AT32F423) || defined (SOC_SERIES_AT32F402) || \
-    defined (SOC_SERIES_AT32F405) || defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32F405) || defined (SOC_SERIES_AT32A423) || \
+    defined (SOC_SERIES_AT32M412) || defined (SOC_SERIES_AT32M416) || \
+    defined (SOC_SERIES_AT32F455) || defined (SOC_SERIES_AT32F456) || \
+    defined (SOC_SERIES_AT32F457)
         dmamux_enable(instance->handle->dma_rx->dma_x, TRUE);
         dmamux_init(instance->handle->dma_rx->dmamux_channel, (dmamux_requst_id_sel_type)instance->handle->dma_rx->request_id);
 #endif
@@ -1247,7 +1263,10 @@ static void at32_i2c_dma_init(struct at32_i2c *instance)
 #endif
 #if defined (SOC_SERIES_AT32F435) || defined (SOC_SERIES_AT32F437) || \
     defined (SOC_SERIES_AT32F423) || defined (SOC_SERIES_AT32F402) || \
-    defined (SOC_SERIES_AT32F405) || defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32F405) || defined (SOC_SERIES_AT32A423) || \
+    defined (SOC_SERIES_AT32M412) || defined (SOC_SERIES_AT32M416) || \
+    defined (SOC_SERIES_AT32F455) || defined (SOC_SERIES_AT32F456) || \
+    defined (SOC_SERIES_AT32F457)
         dmamux_enable(instance->handle->dma_tx->dma_x, TRUE);
         dmamux_init(instance->handle->dma_tx->dmamux_channel, (dmamux_requst_id_sel_type)instance->handle->dma_tx->request_id);
 #endif
@@ -1337,7 +1356,7 @@ void i2c_err_isr(struct at32_i2c_handle *handle)
     i2c_interrupt_enable(handle->i2c_x, I2C_ERR_INT, FALSE);
 }
 
-void dma_isr(struct at32_i2c_handle *handle)
+void i2c_dma_isr(struct at32_i2c_handle *handle)
 {
     volatile rt_uint32_t reg_sts = 0, index = 0;
     struct dma_config *dma = RT_NULL;
@@ -1373,7 +1392,9 @@ void dma_isr(struct at32_i2c_handle *handle)
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
         /* disable dma request */
         if(handle->comm.mode == I2C_DMA_MA_TX)
             i2c_dma_enable(handle->i2c_x, I2C_DMA_REQUEST_TX, FALSE);
@@ -1410,7 +1431,9 @@ void dma_isr(struct at32_i2c_handle *handle)
 #if defined (SOC_SERIES_AT32F402)  || defined (SOC_SERIES_AT32F405) || \
     defined (SOC_SERIES_AT32F423)  || defined (SOC_SERIES_AT32F425) || \
     defined (SOC_SERIES_AT32F435)  || defined (SOC_SERIES_AT32F437) || \
-    defined (SOC_SERIES_AT32A423)
+    defined (SOC_SERIES_AT32A423)  || defined (SOC_SERIES_AT32M412) || \
+    defined (SOC_SERIES_AT32M416)  || defined (SOC_SERIES_AT32F455) || \
+    defined (SOC_SERIES_AT32F456)  || defined (SOC_SERIES_AT32F457)
             case I2C_DMA_MA_TX:
             case I2C_DMA_MA_RX:
             {
@@ -1482,7 +1505,7 @@ void I2C1_RX_DMA_IRQHandler(void)
     /* enter interrupt */
     rt_interrupt_enter();
 
-    dma_isr(i2cs[I2C1_INDEX].handle);
+    i2c_dma_isr(i2cs[I2C1_INDEX].handle);
 
     /* leave interrupt */
     rt_interrupt_leave();
@@ -1494,7 +1517,7 @@ void I2C1_TX_DMA_IRQHandler(void)
     /* enter interrupt */
     rt_interrupt_enter();
 
-    dma_isr(i2cs[I2C1_INDEX].handle);
+    i2c_dma_isr(i2cs[I2C1_INDEX].handle);
 
     /* leave interrupt */
     rt_interrupt_leave();
@@ -1529,7 +1552,7 @@ void I2C2_RX_DMA_IRQHandler(void)
     /* enter interrupt */
     rt_interrupt_enter();
 
-    dma_isr(i2cs[I2C2_INDEX].handle);
+    i2c_dma_isr(i2cs[I2C2_INDEX].handle);
 
     /* leave interrupt */
     rt_interrupt_leave();
@@ -1541,7 +1564,7 @@ void I2C2_TX_DMA_IRQHandler(void)
     /* enter interrupt */
     rt_interrupt_enter();
 
-    dma_isr(i2cs[I2C2_INDEX].handle);
+    i2c_dma_isr(i2cs[I2C2_INDEX].handle);
 
     /* leave interrupt */
     rt_interrupt_leave();
@@ -1576,7 +1599,7 @@ void I2C3_RX_DMA_IRQHandler(void)
     /* enter interrupt */
     rt_interrupt_enter();
 
-    dma_isr(i2cs[I2C3_INDEX].handle);
+    i2c_dma_isr(i2cs[I2C3_INDEX].handle);
 
     /* leave interrupt */
     rt_interrupt_leave();
@@ -1588,7 +1611,7 @@ void I2C3_TX_DMA_IRQHandler(void)
     /* enter interrupt */
     rt_interrupt_enter();
 
-    dma_isr(i2cs[I2C3_INDEX].handle);
+    i2c_dma_isr(i2cs[I2C3_INDEX].handle);
 
     /* leave interrupt */
     rt_interrupt_leave();

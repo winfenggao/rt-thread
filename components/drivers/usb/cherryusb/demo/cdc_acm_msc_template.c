@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "usbd_core.h"
-#include "usbd_cdc.h"
+#include "usbd_cdc_acm.h"
 #include "usbd_msc.h"
 
 /*!< endpoint address */
@@ -54,11 +54,11 @@ static const uint8_t device_quality_descriptor[] = {
     USB_DESCRIPTOR_TYPE_DEVICE_QUALIFIER,
     0x00,
     0x02,
-    0x02,
-    0x02,
-    0x01,
+    0x00,
+    0x00,
+    0x00,
     0x40,
-    0x01,
+    0x00,
     0x00,
 };
 
@@ -169,11 +169,11 @@ static const uint8_t cdc_msc_descriptor[] = {
     USB_DESCRIPTOR_TYPE_DEVICE_QUALIFIER,
     0x00,
     0x02,
-    0x02,
-    0x02,
-    0x01,
+    0x00,
+    0x00,
+    0x00,
     0x40,
-    0x01,
+    0x00,
     0x00,
 #endif
     0x00
@@ -215,14 +215,14 @@ static void usbd_event_handler(uint8_t busid, uint8_t event)
 
 void usbd_cdc_acm_bulk_out(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
-    USB_LOG_RAW("actual out len:%d\r\n", nbytes);
+    USB_LOG_RAW("actual out len:%d\r\n", (unsigned int)nbytes);
     /* setup next out ep read transfer */
     usbd_ep_start_read(busid, CDC_OUT_EP, read_buffer, 2048);
 }
 
 void usbd_cdc_acm_bulk_in(uint8_t busid, uint8_t ep, uint32_t nbytes)
 {
-    USB_LOG_RAW("actual in len:%d\r\n", nbytes);
+    USB_LOG_RAW("actual in len:%d\r\n", (unsigned int)nbytes);
 
     if ((nbytes % usbd_get_ep_mps(busid, ep)) == 0 && nbytes) {
         /* send zlp */
@@ -247,7 +247,7 @@ struct usbd_interface intf0;
 struct usbd_interface intf1;
 struct usbd_interface intf2;
 
-void cdc_acm_msc_init(uint8_t busid, uint32_t reg_base)
+void cdc_acm_msc_init(uint8_t busid, uintptr_t reg_base)
 {
 #ifdef CONFIG_USBDEV_ADVANCE_DESC
     usbd_desc_register(busid, &cdc_msc_descriptor);

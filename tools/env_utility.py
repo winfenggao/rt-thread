@@ -41,13 +41,31 @@ def GetPkgPath():
     else:
         return None
 
-
-def GetSDKPath(name):
+def GetSDKPackagePath():
     env = GetEnvPath()
 
     if env:
-        # read packages.json under env/tools/packages
-        with open(os.path.join(env, 'tools', 'packages', 'pkgs.json'), 'r', encoding='utf-8') as f:
+        return os.path.join(env, "tools", "scripts", "packages")
+
+    return None
+
+# get SDK path based on name
+# for example, GetSDKPath('arm-none-eabi') = '.env/tools/scripts/packages/arm-none-eabi-gcc-v10.3'
+def GetSDKPath(name):
+    sdk_pkgs = GetSDKPackagePath()
+
+    if sdk_pkgs:
+        # read env/tools/scripts/sdk_cfg.json for curstomized SDK path
+        if os.path.exists(os.path.join(sdk_pkgs, '..', 'sdk_cfg.json')):
+            with open(os.path.join(sdk_pkgs, '..', 'sdk_cfg.json'), 'r', encoding='utf-8') as f:
+                sdk_cfg = json.load(f)
+                for item in sdk_cfg:
+                    if item['name'] == name:
+                        sdk = os.path.join(sdk_pkgs, item['path'])
+                        return sdk
+
+        # read packages.json under env/tools/scripts/packages
+        with open(os.path.join(sdk_pkgs, 'pkgs.json'), 'r', encoding='utf-8') as f:
             # packages_json = f.read()
             packages = json.load(f)
 
@@ -59,11 +77,11 @@ def GetSDKPath(name):
                     package = json.load(f)
 
                     if package['name'] == name:
-                        return os.path.join(GetPkgPath(), package['name'] + '-' + item['ver'])
+                        sdk = os.path.join(sdk_pkgs, package['name'] + '-' + item['ver'])
+                        return sdk
 
     # not found named package
     return None
-
 
 def help_info():
     print(
@@ -309,7 +327,7 @@ def get_file_md5(file):
 
 # Exclude utestcases
 def exclude_utestcases(RTT_ROOT):
-    if os.path.isfile(os.path.join(RTT_ROOT, 'examples/utest/testcases/Kconfig')):
+    if os.path.isfile(os.path.join(RTT_ROOT, 'Kconfig.utestcases')):
         return
 
     if not os.path.isfile(os.path.join(RTT_ROOT, 'Kconfig')):
@@ -319,7 +337,7 @@ def exclude_utestcases(RTT_ROOT):
         data = f.readlines()
     with open(os.path.join(RTT_ROOT, 'Kconfig'), 'w') as f:
         for line in data:
-            if line.find('examples/utest/testcases/Kconfig') == -1:
+            if line.find('Kconfig.utestcases') == -1:
                 f.write(line)
 
 

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2006-2022, RT-Thread Development Team
- * Copyright (c) 2022-2024, Xiaohua Semiconductor Co., Ltd.
+ * Copyright (C) 2022-2024, Xiaohua Semiconductor Co., Ltd.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -31,6 +30,7 @@ extern "C" {
 #include "qspi_config.h"
 #include "pulse_encoder_config.h"
 #include "timer_config.h"
+#include "tmr_capture_config.h"
 
 #ifdef __cplusplus
 }

@@ -5,7 +5,7 @@
 // <RDTConfigurator URL="http://www.rt-thread.com/eclipse">
 
 // <integer name="RT_NAME_MAX" description="Maximal size of kernel object name length" default="6" />
-#define RT_NAME_MAX 8
+#define RT_NAME_MAX 12
 // <integer name="RT_ALIGN_SIZE" description="Alignment size for CPU architecture data access" default="8" />
 #define RT_ALIGN_SIZE   8
 // <integer name="RT_THREAD_PRIORITY_MAX" description="Maximal level of thread priority" default="32">
@@ -28,6 +28,8 @@
 #define RT_USING_OVERFLOW_CHECK
 // </section>
 
+#define RT_CPUS_NR 1
+#define RT_BACKTRACE_LEVEL_MAX_NR 32
 // <bool name="RT_USING_HOOK" description="Using hook functions" default="true" />
 #define RT_USING_HOOK
 // <section name="RT_USING_TIMER_SOFT" description="Using software timer which will start a thread to handle soft-timer" default="true" >
@@ -36,8 +38,7 @@
 #define RT_TIMER_THREAD_PRIO    4
 // <integer name="RT_TIMER_THREAD_STACK_SIZE" description="The stack size of timer thread" default="512" />
 #define RT_TIMER_THREAD_STACK_SIZE  512
-// <integer name="RT_TIMER_TICK_PER_SECOND" description="The soft-timer tick per second" default="10" />
-#define RT_TIMER_TICK_PER_SECOND    100
+// <integer name="RT_TICK_PER_SECOND" description="The soft-timer tick per second" default="10" />
 // </section>
 
 // <section name="IPC" description="Inter-Thread communication" default="always" >
@@ -87,8 +88,8 @@
 //#define RT_USING_I2C
 // <bool name="RT_USING_RTC" description="Using RTC Device Driver Framework" default="true" />
 //#define RT_USING_RTC
-// <integer name="RT_MMCSD_THREAD_PREORITY" description="The prority of mmcsd thread" default="15" />
-#define RT_MMCSD_THREAD_PREORITY    15
+// <integer name="RT_MMCSD_THREAD_PRIORITY" description="The prority of mmcsd thread" default="15" />
+#define RT_MMCSD_THREAD_PRIORITY    15
 // <section name="RT_USING_CONSOLE" description="Using console" default="true" >
 #define RT_USING_CONSOLE
 // <integer name="RT_CONSOLEBUF_SIZE" description="The buffer size for console output" default="128" />
@@ -218,8 +219,6 @@
 #define RT_LWIP_MSKADDR2 255
 #define RT_LWIP_MSKADDR3 0
 // </section>
-
-#define RT_USING_VBUS
 
 // </RDTConfigurator>
 

@@ -21,6 +21,8 @@
 #include "usb_osal.h"
 #include "usbh_hub.h"
 #include "usb_memcpy.h"
+#include "usb_dcache.h"
+#include "usb_version.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,7 +47,7 @@ extern "C" {
 #define CLASS_INFO_DEFINE __attribute__((section(".usbh_class_info"))) __USED __ALIGNED(1)
 #endif
 
-#define USBH_GET_URB_INTERVAL(interval, speed) (speed < USB_SPEED_HIGH ? interval : (1 << (interval - 1)))
+#define USBH_GET_URB_INTERVAL(interval, speed) (speed < USB_SPEED_HIGH ? (interval * 1000) : ((1 << (interval - 1)) * 125))
 
 #define USBH_EP_INIT(ep, ep_desc)                                            \
     do {                                                                     \
@@ -60,9 +62,9 @@ extern "C" {
 
 struct usbh_class_info {
     uint8_t match_flags;           /* Used for product specific matches; range is inclusive */
-    uint8_t class;                 /* Base device class code */
-    uint8_t subclass;              /* Sub-class, depends on base class. Eg. */
-    uint8_t protocol;              /* Protocol, depends on base class. Eg. */
+    uint8_t bInterfaceClass;       /* Base device class code */
+    uint8_t bInterfaceSubClass;    /* Sub-class, depends on base class. Eg. */
+    uint8_t bInterfaceProtocol;    /* Protocol, depends on base class. Eg. */
     const uint16_t (*id_table)[2]; /* List of Vendor/Product ID pairs */
     const struct usbh_class_driver *class_driver;
 };
@@ -101,6 +103,9 @@ struct usbh_hubport {
     uint8_t port;     /* Hub port index */
     uint8_t dev_addr; /* device address */
     uint8_t speed;    /* device speed */
+    uint8_t depth;    /* distance from root hub */
+    uint8_t route;    /* route string */
+    uint8_t slot_id;  /* slot id */
     struct usb_device_descriptor device_desc;
     struct usbh_configuration config;
     const char *iManufacturer;
@@ -109,6 +114,7 @@ struct usbh_hubport {
     uint8_t *raw_config_desc;
     struct usb_setup_packet *setup;
     struct usbh_hub *parent;
+    struct usbh_hub *self; /* if this hubport is a hub */
     struct usbh_bus *bus;
     struct usb_endpoint_descriptor ep0;
     struct usbh_urb ep0_urb;
@@ -120,7 +126,13 @@ struct usbh_hub {
     bool is_roothub;
     uint8_t index;
     uint8_t hub_addr;
-    struct usb_hub_descriptor hub_desc;
+    uint8_t speed;
+    uint8_t nports;
+    uint8_t powerdelay;
+    uint8_t tt_think;
+    bool ismtt;
+    struct usb_hub_descriptor hub_desc; /* USB 2.0 only */
+    struct usb_hub_ss_descriptor hub_ss_desc; /* USB 3.0 only */
     struct usbh_hubport child[CONFIG_USBHOST_MAX_EHPORTS];
     struct usbh_hubport *parent;
     struct usbh_bus *bus;
@@ -143,9 +155,9 @@ struct usbh_devaddr_map {
 };
 
 struct usbh_hcd {
-    uint32_t reg_base;
+    uintptr_t reg_base;
     uint8_t hcd_id;
-    uint8_t roothub_intbuf[1];
+    uint8_t roothub_intbuf[2]; /* at most 15 roothub ports */
     struct usbh_hub roothub;
 };
 
@@ -243,9 +255,10 @@ int usbh_control_transfer(struct usbh_hubport *hport, struct usb_setup_packet *s
  * @param hport Pointer to the USB hub port structure.
  * @param index Index of the string descriptor to retrieve.
  * @param output Pointer to the buffer where the retrieved descriptor will be stored.
+ * @param output_len Length of the output buffer.
  * @return On success will return 0, and others indicate fail.
  */
-int usbh_get_string_desc(struct usbh_hubport *hport, uint8_t index, uint8_t *output);
+int usbh_get_string_desc(struct usbh_hubport *hport, uint8_t index, uint8_t *output, uint16_t output_len);
 
 /**
  * @brief Sets the alternate setting for a USB interface on a specific hub port.
@@ -261,9 +274,10 @@ int usbh_get_string_desc(struct usbh_hubport *hport, uint8_t index, uint8_t *out
  */
 int usbh_set_interface(struct usbh_hubport *hport, uint8_t intf, uint8_t altsetting);
 
-int usbh_initialize(uint8_t busid, uint32_t reg_base);
+int usbh_initialize(uint8_t busid, uintptr_t reg_base);
 int usbh_deinitialize(uint8_t busid);
 void *usbh_find_class_instance(const char *devname);
+struct usbh_hubport *usbh_find_hubport(uint8_t busid, uint8_t hub_index, uint8_t hub_port);
 
 int lsusb(int argc, char **argv);
 

@@ -457,6 +457,11 @@ int usb_dc_init(uint8_t busid)
     bflb_irq_attach(37, USBD_IRQ, NULL);
     bflb_irq_enable(37);
 
+    /* disable device-A for device */
+    regval = getreg32(BFLB_PDS_BASE + PDS_USB_CTL_OFFSET);
+    regval |= PDS_REG_USB_IDDIG;
+    putreg32(regval, BFLB_PDS_BASE + PDS_USB_CTL_OFFSET);
+
     /* disable global irq */
     regval = getreg32(BFLB_USB_BASE + USB_DEV_CTL_OFFSET);
     regval &= ~USB_GLINT_EN_HOV;
@@ -473,6 +478,11 @@ int usb_dc_init(uint8_t busid)
 
     regval = getreg32(BFLB_USB_BASE + USB_DEV_CTL_OFFSET);
     regval |= USB_SFRST_HOV;
+#ifdef CONFIG_USB_HS
+    regval &= ~USB_FORCE_FS;
+#else
+    regval |= USB_FORCE_FS;
+#endif
     putreg32(regval, BFLB_USB_BASE + USB_DEV_CTL_OFFSET);
 
     while (getreg32(BFLB_USB_BASE + USB_DEV_CTL_OFFSET) & USB_SFRST_HOV) {
@@ -613,6 +623,23 @@ int usbd_set_address(uint8_t busid, const uint8_t addr)
     return 0;
 }
 
+int usbd_set_remote_wakeup(uint8_t busid)
+{
+    uint32_t regval;
+
+    regval = getreg32(BFLB_USB_BASE + USB_DEV_CTL_OFFSET);
+    regval |= USB_CAP_RMWAKUP;
+    putreg32(regval, BFLB_USB_BASE + USB_DEV_CTL_OFFSET);
+
+    bflb_mtimer_delay_ms(10);
+
+    regval = getreg32(BFLB_USB_BASE + USB_DEV_CTL_OFFSET);
+    regval &= ~USB_CAP_RMWAKUP;
+    putreg32(regval, BFLB_USB_BASE + USB_DEV_CTL_OFFSET);
+
+    return 0;
+}
+
 uint8_t usbd_get_port_speed(uint8_t busid)
 {
     uint8_t speed = 3;
@@ -638,7 +665,7 @@ int usbd_ep_open(uint8_t busid, const struct usb_endpoint_descriptor *ep)
 
     uint8_t ep_idx = USB_EP_GET_IDX(ep_addr);
 
-    if ((ep_idx > 4) && (ep_idx < 9)) {
+    if (ep_idx > 4) {
         return 0;
     }
 
@@ -822,6 +849,29 @@ int usbd_ep_clear_stall(uint8_t busid, const uint8_t ep)
 
 int usbd_ep_is_stalled(uint8_t busid, const uint8_t ep, uint8_t *stalled)
 {
+    uint32_t regval;
+
+    uint8_t ep_idx = USB_EP_GET_IDX(ep);
+
+    if (ep_idx == 0) {
+    } else {
+        if (USB_EP_DIR_IS_OUT(ep)) {
+            regval = getreg32(BFLB_USB_BASE + USB_DEV_OUTMPS1_OFFSET + (ep_idx - 1) * 4);
+            if (regval & USB_STL_OEP1) {
+                *stalled = 1;
+            } else {
+                *stalled = 0;
+            }
+        } else {
+            regval = getreg32(BFLB_USB_BASE + USB_DEV_INMPS1_OFFSET + (ep_idx - 1) * 4);
+            if (regval & USB_STL_IEP1) {
+                *stalled = 1;
+            } else {
+                *stalled = 0;
+            }
+        }
+    }
+
     return 0;
 }
 
@@ -1019,12 +1069,11 @@ void USBD_IRQHandler(uint8_t busid)
 }
 
 #ifdef CONFIG_USBDEV_TEST_MODE
-void usbd_execute_test_mode(struct usb_setup_packet *setup)
+void usbd_execute_test_mode(uint8_t busid, uint8_t test_mode)
 {
     uint32_t regval;
-    uint8_t index = setup->wIndex >> 8;
 
-    switch (index) {
+    switch (test_mode) {
         case 1: // Test_J
         {
             regval = getreg32(BFLB_USB_BASE + USB_PHY_TST_OFFSET);

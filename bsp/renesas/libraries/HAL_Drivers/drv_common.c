@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2021, RT-Thread Development Team
+ * Copyright (c) 2006-2025, RT-Thread Development Team
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -11,6 +11,7 @@
 #include <drv_common.h>
 #include <bsp_api.h>
 #include "board.h"
+#include <hal_data.h>
 
 #ifdef RT_USING_PIN
     #include <drv_gpio.h>
@@ -36,7 +37,8 @@ static void SysTimerInterrupt(void);
 static void reboot(uint8_t argc, char **argv)
 {
 #ifdef SOC_SERIES_R9A07G0
-    return;
+    R_BSP_RegisterProtectDisable(BSP_REG_PROTECT_LPC_RESET);
+    R_BSP_SystemReset();
 #else
     NVIC_SystemReset();
 #endif
@@ -168,6 +170,12 @@ rt_weak void rt_hw_board_init()
     rt_hw_interrupt_init();
 #endif
 
+#if defined(BSP_CFG_CPU_CORE) && (BSP_CFG_CPU_CORE == CPU0) && defined(SOC_SERIES_R7KA8P1) && defined(BSP_START_SECONDARY_CORE)
+    #if !defined(BSP_USING_RPMSG_LITE_MCMGR)
+        R_BSP_SecondaryCoreStart();
+    #endif
+#endif
+
     rt_hw_systick_init();
 
     /* Heap initialization */
@@ -188,6 +196,11 @@ rt_weak void rt_hw_board_init()
     /* Set the shell console output device */
 #if defined(RT_USING_CONSOLE) && defined(RT_USING_DEVICE)
     rt_console_set_device(RT_CONSOLE_DEVICE_NAME);
+#endif
+
+#if defined(RT_USING_CONSOLE) && defined(RT_USING_NANO)
+    extern void rt_hw_console_init(void);
+    rt_hw_console_init();
 #endif
 
     /* Board underlying hardware initialization */

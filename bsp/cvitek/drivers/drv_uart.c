@@ -14,6 +14,7 @@
 #include "board.h"
 #include "drv_uart.h"
 #include "drv_pinmux.h"
+#include "drv_ioremap.h"
 
 #define DBG_TAG "DRV.UART"
 #define DBG_LVL DBG_WARNING
@@ -115,6 +116,7 @@ static rt_err_t dw8250_uart_configure(struct rt_serial_device *serial, struct se
     rt_base_t base;
     struct hw_uart_device *uart;
     int clock_divisor;
+    int last_ier_state;
 
     RT_ASSERT(serial != RT_NULL);
     uart = (struct hw_uart_device *)serial->parent.user_data;
@@ -122,6 +124,7 @@ static rt_err_t dw8250_uart_configure(struct rt_serial_device *serial, struct se
 
     while (!(dw8250_read32(base, UART_LSR) & UART_LSR_TEMT));
 
+    last_ier_state = dw8250_read32(base, UART_IER);
     dw8250_write32(base, UART_IER, 0);
     dw8250_write32(base, UART_MCR, UART_MCRVAL);
     dw8250_write32(base, UART_FCR, UART_FCR_DEFVAL);
@@ -131,6 +134,8 @@ static rt_err_t dw8250_uart_configure(struct rt_serial_device *serial, struct se
 
     clock_divisor = DIV_ROUND_CLOSEST(UART_INPUT_CLK, 16 * serial->config.baud_rate);
     dw8250_uart_setbrg(base, clock_divisor);
+
+    dw8250_write32(base, UART_IER, last_ier_state);
 
     return RT_EOK;
 }
@@ -235,7 +240,7 @@ static void rt_hw_uart_isr(int irqno, void *param)
     }
 }
 
-#if defined(BOARD_TYPE_MILKV_DUO) || defined(BOARD_TYPE_MILKV_DUO_SPINOR)
+#if defined(BOARD_TYPE_MILKV_DUO)
 
 #ifdef BSP_USING_UART0
 static const char *pinname_whitelist_uart0_rx[] = {
@@ -296,7 +301,7 @@ static const char *pinname_whitelist_uart4_tx[] = {
 };
 #endif
 
-#elif defined(BOARD_TYPE_MILKV_DUO256M) || defined(BOARD_TYPE_MILKV_DUO256M_SPINOR)
+#elif defined(BOARD_TYPE_MILKV_DUO256M)
 
 #ifdef BSP_USING_UART0
 static const char *pinname_whitelist_uart0_rx[] = {
@@ -357,6 +362,71 @@ static const char *pinname_whitelist_uart4_tx[] = {
 };
 #endif
 
+#elif defined(BOARD_TYPE_MILKV_DUOS)
+
+#ifdef BSP_USING_UART0
+static const char *pinname_whitelist_uart0_rx[] = {
+    "UART0_RX",
+    NULL,
+};
+static const char *pinname_whitelist_uart0_tx[] = {
+    "UART0_TX",
+    NULL,
+};
+#endif
+
+#ifdef BSP_USING_UART1
+static const char *pinname_whitelist_uart1_rx[] = {
+    "JTAG_CPU_TCK",
+    "UART0_RX",
+    NULL,
+};
+static const char *pinname_whitelist_uart1_tx[] = {
+    "JTAG_CPU_TMS",
+    "UART0_TX",
+    "IIC0_SCL",
+    NULL,
+};
+#endif
+
+#ifdef BSP_USING_UART2
+static const char *pinname_whitelist_uart2_rx[] = {
+    "VIVO_D9",
+    "VIVO_D5",
+    "VIVO_CLK",
+    "PWR_GPIO1",
+    NULL,
+};
+static const char *pinname_whitelist_uart2_tx[] = {
+    "VIVO_D10",
+    "VIVO_D6",
+    "VIVO_D2",
+    "IIC0_SCL",
+    "PWR_GPIO0",
+    NULL,
+};
+#endif
+
+#ifdef BSP_USING_UART3
+static const char *pinname_whitelist_uart3_rx[] = {
+    "ADC2",
+    NULL,
+};
+static const char *pinname_whitelist_uart3_tx[] = {
+    "ADC3",
+    NULL,
+};
+#endif
+
+#ifdef BSP_USING_UART4
+static const char *pinname_whitelist_uart4_rx[] = {
+    NULL,
+};
+static const char *pinname_whitelist_uart4_tx[] = {
+    NULL,
+};
+#endif
+
 #else
     #error "Unsupported board type!"
 #endif
@@ -379,45 +449,40 @@ int rt_hw_uart_init(void)
     pinmux_config(BSP_UART0_RX_PINNAME, UART0_RX, pinname_whitelist_uart0_rx);
     pinmux_config(BSP_UART0_TX_PINNAME, UART0_TX, pinname_whitelist_uart0_tx);
     BSP_INSTALL_UART_DEVICE(0);
-#if defined(ARCH_ARM)
-    uart->hw_base = (rt_size_t)rt_ioremap((void*)uart->hw_base, 0x10000);
-#endif /* defined(ARCH_ARM) */
+
+    uart->hw_base = (rt_ubase_t)DRV_IOREMAP((void*)uart->hw_base, 0x10000);
 #endif
 
 #ifdef BSP_USING_UART1
     pinmux_config(BSP_UART1_RX_PINNAME, UART1_RX, pinname_whitelist_uart1_rx);
     pinmux_config(BSP_UART1_TX_PINNAME, UART1_TX, pinname_whitelist_uart1_tx);
     BSP_INSTALL_UART_DEVICE(1);
-#if defined(ARCH_ARM)
-    uart->hw_base = (rt_size_t)rt_ioremap((void*)uart->hw_base, 0x10000);
-#endif /* defined(ARCH_ARM) */
+
+    uart->hw_base = (rt_ubase_t)DRV_IOREMAP((void*)uart->hw_base, 0x10000);
 #endif
 
 #ifdef BSP_USING_UART2
     pinmux_config(BSP_UART2_RX_PINNAME, UART2_RX, pinname_whitelist_uart2_rx);
     pinmux_config(BSP_UART2_TX_PINNAME, UART2_TX, pinname_whitelist_uart2_tx);
     BSP_INSTALL_UART_DEVICE(2);
-#if defined(ARCH_ARM)
-    uart->hw_base = (rt_size_t)rt_ioremap((void*)uart->hw_base, 0x10000);
-#endif /* defined(ARCH_ARM) */
+
+    uart->hw_base = (rt_ubase_t)DRV_IOREMAP((void*)uart->hw_base, 0x10000);
 #endif
 
 #ifdef BSP_USING_UART3
     pinmux_config(BSP_UART3_RX_PINNAME, UART3_RX, pinname_whitelist_uart3_rx);
     pinmux_config(BSP_UART3_TX_PINNAME, UART3_TX, pinname_whitelist_uart3_tx);
     BSP_INSTALL_UART_DEVICE(3);
-#if defined(ARCH_ARM)
-    uart->hw_base = (rt_size_t)rt_ioremap((void*)uart->hw_base, 0x10000);
-#endif /* defined(ARCH_ARM) */
+
+    uart->hw_base = (rt_ubase_t)DRV_IOREMAP((void*)uart->hw_base, 0x10000);
 #endif
 
 #ifdef BSP_USING_UART4
     pinmux_config(BSP_UART4_RX_PINNAME, UART4_RX, pinname_whitelist_uart4_rx);
     pinmux_config(BSP_UART4_TX_PINNAME, UART4_TX, pinname_whitelist_uart4_tx);
     BSP_INSTALL_UART_DEVICE(4);
-#if defined(ARCH_ARM)
-    uart->hw_base = (rt_size_t)rt_ioremap((void*)uart->hw_base, 0x10000);
-#endif /* defined(ARCH_ARM) */
+
+    uart->hw_base = (rt_ubase_t)DRV_IOREMAP((void*)uart->hw_base, 0x10000);
 #endif
 
     return 0;

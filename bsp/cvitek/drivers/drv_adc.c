@@ -11,6 +11,7 @@
 #include <rtdevice.h>
 #include "drv_adc.h"
 #include "drv_pinmux.h"
+#include "drv_ioremap.h"
 
 #define DBG_LEVEL   DBG_LOG
 #include <rtdbg.h>
@@ -68,10 +69,18 @@ struct cvi_adc_dev
 
 static struct cvi_adc_dev adc_dev_config[] =
 {
+#ifdef BSP_USING_ADC_ACTIVE
     {
         .name = "adc1",
         .base = SARADC_BASE
     },
+#endif /* BSP_USING_ADC_ACTIVE */
+#ifdef BSP_USING_ADC_NODIE
+    {
+        .name = "adc2",
+        .base = RTC_ADC_BASE
+    },
+#endif /* BSP_USING_ADC_NODIE */
 };
 
 static rt_err_t _adc_enabled(struct rt_adc_device *device, rt_int8_t channel, rt_bool_t enabled)
@@ -145,14 +154,12 @@ static const struct rt_adc_ops _adc_ops =
 };
 
 
-#if defined(BOARD_TYPE_MILKV_DUO) || defined(BOARD_TYPE_MILKV_DUO_SPINOR)
+#if defined(BOARD_TYPE_MILKV_DUO)
 
 /*
  * cv180xb supports
  * - adc1 & adc2 for active domain
  * - adc3 for no-die domain
- *
- * FIXME: currnet adc driver only support adc1 in active domain
  */
 #ifdef BSP_USING_ADC_ACTIVE
 static const char *pinname_whitelist_adc1_active[] = {
@@ -169,24 +176,25 @@ static const char *pinname_whitelist_adc3_active[] = {
 
 #ifdef BSP_USING_ADC_NODIE
 static const char *pinname_whitelist_adc1_nodie[] = {
+    "PWR_GPIO2",
     NULL,
 };
 static const char *pinname_whitelist_adc2_nodie[] = {
+    "PWR_GPIO1",
     NULL,
 };
 static const char *pinname_whitelist_adc3_nodie[] = {
+    "PWR_VBAT_DET",
     NULL,
 };
 #endif
 
-#elif defined(BOARD_TYPE_MILKV_DUO256M) || defined(BOARD_TYPE_MILKV_DUO256M_SPINOR)
+#elif defined(BOARD_TYPE_MILKV_DUO256M)
 
 /*
  * sg2002 supports
  * - adc1 for active domain
  * - adc1/adc2/adc3 for no-die domain
- *
- * FIXME: currnet adc driver only support adc1 in active domain
  */
 
 #ifdef BSP_USING_ADC_ACTIVE
@@ -204,12 +212,15 @@ static const char *pinname_whitelist_adc3_active[] = {
 
 #ifdef BSP_USING_ADC_NODIE
 static const char *pinname_whitelist_adc1_nodie[] = {
+    "PWR_GPIO2",
     NULL,
 };
 static const char *pinname_whitelist_adc2_nodie[] = {
+    "PWR_GPIO1",
     NULL,
 };
 static const char *pinname_whitelist_adc3_nodie[] = {
+    "PWR_VBAT_DET",
     NULL,
 };
 #endif
@@ -237,15 +248,24 @@ int rt_hw_adc_init(void)
 {
     rt_uint8_t i;
 
+    for (i = 0; i < sizeof(adc_dev_config) / sizeof(adc_dev_config[0]); i++)
+    {
+        if (!rt_strcmp(adc_dev_config[i].name, "adc1"))
+        {
+            adc_dev_config[i].base = (rt_ubase_t)DRV_IOREMAP(SARADC_BASE, 0x10000);
+        }
+        else if (!rt_strcmp(adc_dev_config[i].name, "adc2"))
+        {
+            adc_dev_config[i].base = (rt_ubase_t)DRV_IOREMAP(RTC_ADC_BASE, 0x1000);
+        }
+    }
+
     rt_hw_adc_pinmux_config();
 
     for (i = 0; i < sizeof(adc_dev_config) / sizeof(adc_dev_config[0]); i++)
     {
         cvi_do_calibration(adc_dev_config[i].base);
-    }
 
-    for (i = 0; i < sizeof(adc_dev_config) / sizeof(adc_dev_config[0]); i++)
-    {
         if (rt_hw_adc_register(&adc_dev_config[i].device, adc_dev_config[i].name, &_adc_ops, &adc_dev_config[i]) != RT_EOK)
         {
             LOG_E("%s register failed!", adc_dev_config[i].name);

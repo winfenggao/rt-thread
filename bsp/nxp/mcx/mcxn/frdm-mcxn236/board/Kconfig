@@ -1,8 +1,8 @@
 menu "Hardware Drivers Config"
 
-config SOC_MCXN947
+config SOC_MCXN236
     bool
-    select SOC_MCXN947_SERIES
+    select SOC_MCXN236_SERIES
     select RT_USING_COMPONENTS_INIT
     select RT_USING_USER_MAIN
     default y
@@ -18,6 +18,19 @@ menu "On-chip Peripheral Drivers"
         bool "Enable GPIO"
         select RT_USING_PIN
         default y
+
+    config BSP_USING_CAN
+        bool "Enable CAN"
+        default n
+        select RT_USING_CAN if BSP_USING_CAN
+        if BSP_USING_CAN
+            config BSP_USING_CAN0
+                bool "Enable CAN0"
+                default n
+            config BSP_USING_CAN1
+                bool "Enable CAN1"
+                default n
+        endif
 
     menuconfig BSP_USING_UART
         bool "Enable UART"
@@ -103,10 +116,6 @@ menu "On-chip Peripheral Drivers"
                 config BSP_USING_SPI7
                     bool "Enable Flexcomm7 as SPI"
                     default n
-
-                config BSP_USING_SPI8
-                    bool "Enable Flexcomm8 as High Speed SPI"
-                    default y
             endif
 
     menuconfig BSP_USING_ADC

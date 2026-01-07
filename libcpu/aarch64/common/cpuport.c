@@ -40,4 +40,35 @@ int __rt_ffs(int value)
 #endif
 }
 
+unsigned long __rt_ffsl(unsigned long value)
+{
+#ifdef __GNUC__
+    return __builtin_ffsl(value);
+#else
+    if (!value)
+    {
+        return 0;
+    }
+
+    __asm__ volatile ("rbit %0, %0" : "+r" (value));
+
+    return __rt_clz(value);
+#endif
+}
+
+unsigned long __rt_clz(unsigned long value)
+{
+#ifdef __GNUC__
+    return __builtin_clz(value);
+#else
+    unsigned long val;
+
+    __asm__ volatile ("clz %0, %1"
+        :"=r"(val)
+        :"r"(value));
+
+    return val;
+#endif
+}
+
 #endif /* RT_USING_CPU_FFS */

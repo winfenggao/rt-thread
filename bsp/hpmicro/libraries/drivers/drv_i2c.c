@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2022-2023 HPMicro
+ * Copyright (c) 2022-2024 HPMicro
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
@@ -37,6 +37,7 @@ struct hpm_i2c
     dma_resource_t dma;
     rt_uint8_t i2c_irq;
     rt_uint8_t is_read;
+    rt_uint8_t irq_priority;
 };
 
 static struct hpm_i2c hpm_i2cs[] =
@@ -51,6 +52,11 @@ static struct hpm_i2c hpm_i2cs[] =
 #endif
         .dmamux = HPM_DMA_SRC_I2C0,
         .i2c_irq = IRQn_I2C0,
+#if defined(BSP_I2C0_IRQ_PRIORITY)
+        .irq_priority = BSP_I2C0_IRQ_PRIORITY,
+#else
+        .irq_priority = 1,
+#endif
     },
 #endif
 #if defined(BSP_USING_I2C1)
@@ -63,6 +69,11 @@ static struct hpm_i2c hpm_i2cs[] =
 #endif
         .dmamux = HPM_DMA_SRC_I2C1,
         .i2c_irq = IRQn_I2C1,
+#if defined(BSP_I2C1_IRQ_PRIORITY)
+       .irq_priority = BSP_I2C1_IRQ_PRIORITY,
+#else
+       .irq_priority = 1,
+#endif
     },
 #endif
 #if defined(BSP_USING_I2C2)
@@ -75,6 +86,11 @@ static struct hpm_i2c hpm_i2cs[] =
 #endif
         .dmamux = HPM_DMA_SRC_I2C2,
         .i2c_irq = IRQn_I2C2,
+#if defined(BSP_I2C2_IRQ_PRIORITY)
+        .irq_priority = BSP_I2C2_IRQ_PRIORITY,
+#else
+        .irq_priority = 1,
+#endif
     },
 #endif
 #if defined(BSP_USING_I2C3)
@@ -87,11 +103,83 @@ static struct hpm_i2c hpm_i2cs[] =
 #endif
         .dmamux = HPM_DMA_SRC_I2C3,
         .i2c_irq = IRQn_I2C3,
+#if defined(BSP_I2C3_IRQ_PRIORITY)
+        .irq_priority = BSP_I2C3_IRQ_PRIORITY,
+#else
+        .irq_priority = 1,
+#endif
+    },
+#endif
+#if defined(BSP_USING_I2C4)
+    {
+        .base = HPM_I2C4,
+        .bus_name = "i2c4",
+        .clk_name = clock_i2c4,
+#if defined(BSP_I2C4_USING_DMA)
+        .enable_dma = RT_TRUE,
+#endif
+        .dmamux = HPM_DMA_SRC_I2C4,
+        .i2c_irq = IRQn_I2C4,
+#if defined(BSP_I2C4_IRQ_PRIORITY)
+        .irq_priority = BSP_I2C4_IRQ_PRIORITY,
+#else
+        .irq_priority = 1,
+#endif
+    },
+#endif
+#if defined(BSP_USING_I2C5)
+    {
+        .base = HPM_I2C5,
+        .bus_name = "i2c5",
+        .clk_name = clock_i2c5,
+#if defined(BSP_I2C5_USING_DMA)
+        .enable_dma = RT_TRUE,
+#endif
+        .dmamux = HPM_DMA_SRC_I2C5,
+        .i2c_irq = IRQn_I2C5,
+#if defined(BSP_I2C5_IRQ_PRIORITY)
+        .irq_priority = BSP_I2C5_IRQ_PRIORITY,
+#else
+        .irq_priority = 1,
+#endif
+    },
+#endif
+#if defined(BSP_USING_I2C6)
+    {
+        .base = HPM_I2C6,
+        .bus_name = "i2c6",
+        .clk_name = clock_i2c6,
+#if defined(BSP_I2C6_USING_DMA)
+        .enable_dma = RT_TRUE,
+#endif
+        .dmamux = HPM_DMA_SRC_I2C6,
+        .i2c_irq = IRQn_I2C6,
+#if defined(BSP_I2C6_IRQ_PRIORITY)
+        .irq_priority = BSP_I2C6_IRQ_PRIORITY,
+#else
+        .irq_priority = 1,
+#endif
+    },
+#endif
+#if defined(BSP_USING_I2C7)
+    {
+        .base = HPM_I2C7,
+        .bus_name = "i2c7",
+        .clk_name = clock_i2c7,
+#if defined(BSP_I2C7_USING_DMA)
+        .enable_dma = RT_TRUE,
+#endif
+        .dmamux = HPM_DMA_SRC_I2C7,
+        .i2c_irq = IRQn_I2C7,
+#if defined(BSP_I2C7_IRQ_PRIORITY)
+        .irq_priority = BSP_I2C7_IRQ_PRIORITY,
+#else
+        .irq_priority = 1,
+#endif
     },
 #endif
 };
-static hpm_stat_t i2c_transfer(I2C_Type *ptr, const uint16_t device_address,
-                                    uint8_t *buf, const uint32_t size,  uint16_t flags);
+
 static rt_ssize_t hpm_i2c_master_transfer(struct rt_i2c_bus_device *bus, struct rt_i2c_msg msgs[], rt_uint32_t num);
 static hpm_stat_t i2c_tx_trigger_dma(DMA_Type *dma_ptr, uint8_t ch_num, I2C_Type *i2c_ptr, uint32_t src, uint32_t size);
 static hpm_stat_t i2c_rx_trigger_dma(DMA_Type *dma_ptr, uint8_t ch_num, I2C_Type *i2c_ptr, uint32_t dst, uint32_t size);
@@ -126,131 +214,69 @@ static inline void handle_i2c_isr(I2C_Type *ptr)
 }
 
 #if defined(BSP_USING_I2C0)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C0, i2c0_isr);
 void i2c0_isr(void)
 {
     handle_i2c_isr(HPM_I2C0);
 }
-SDK_DECLARE_EXT_ISR_M(IRQn_I2C0, i2c0_isr);
 #endif
 
 #if defined(BSP_USING_I2C1)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C1, i2c1_isr);
 void i2c1_isr(void)
 {
     handle_i2c_isr(HPM_I2C1);
 }
-SDK_DECLARE_EXT_ISR_M(IRQn_I2C1, i2c1_isr);
 #endif
 
 #if defined(BSP_USING_I2C2)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C2, i2c2_isr);
 void i2c2_isr(void)
 {
     handle_i2c_isr(HPM_I2C2);
 }
-SDK_DECLARE_EXT_ISR_M(IRQn_I2C2, i2c2_isr);
 #endif
 
 #if defined(BSP_USING_I2C3)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C3, i2c3_isr);
 void i2c3_isr(void)
 {
     handle_i2c_isr(HPM_I2C3);
 }
-SDK_DECLARE_EXT_ISR_M(IRQn_I2C3, i2c3_isr);
 #endif
 
-static hpm_stat_t i2c_transfer(I2C_Type *ptr, const uint16_t device_address,
-                                    uint8_t *buf, const uint32_t size,  uint16_t flags)
+#if defined(BSP_USING_I2C4)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C4, i2c4_isr);
+void i2c4_isr(void)
 {
-    uint32_t ctrl = 0;
-    uint32_t retry = 0;
-    uint32_t left = 0;
-    if (((size == 0) || (size > I2C_SOC_TRANSFER_COUNT_MAX))) {
-        return status_invalid_argument;
-    }
-    /* W1C, clear CMPL bit to avoid blocking the transmission */
-    ptr->STATUS = I2C_STATUS_CMPL_MASK;
-    ptr->CMD = I2C_CMD_CLEAR_FIFO;
-    ptr->ADDR = I2C_ADDR_ADDR_SET(device_address);
-
-    if (flags & RT_I2C_RD) {
-        ctrl |= I2C_CTRL_DIR_SET(I2C_DIR_MASTER_READ);
-    } else {
-        ctrl |= I2C_CTRL_DIR_SET(I2C_DIR_MASTER_WRITE);/* is write flag */
-    }
-    /* no start signal send*/
-    if (flags & RT_I2C_NO_START) {
-        ctrl |= I2C_CTRL_PHASE_START_SET(false) | I2C_CTRL_PHASE_STOP_SET(true) \
-               | I2C_CTRL_PHASE_ADDR_SET(true);
-    } else if (flags & RT_I2C_NO_STOP) { /* no end signal send*/
-        ctrl |= I2C_CTRL_PHASE_START_SET(true) | I2C_CTRL_PHASE_STOP_SET(false) \
-               | I2C_CTRL_PHASE_ADDR_SET(true);
-    } else {
-        ctrl |= I2C_CTRL_PHASE_START_SET(true) | I2C_CTRL_PHASE_STOP_SET(true) \
-               | I2C_CTRL_PHASE_ADDR_SET(true);
-    }
-    ptr->CTRL = ctrl | I2C_CTRL_PHASE_DATA_SET(true) \
-                | I2C_CTRL_DATACNT_HIGH_SET(I2C_DATACNT_MAP(size) >> 8U) \
-                | I2C_CTRL_DATACNT_SET(I2C_DATACNT_MAP(size));
-    /* disable auto ack */
-    ptr->INTEN |= I2C_EVENT_BYTE_RECEIVED;
-    ptr->CMD = I2C_CMD_ISSUE_DATA_TRANSMISSION;
-    retry = 0;
-    left = size;
-    if (flags & RT_I2C_RD) {
-        while (left) {
-            if (!(ptr->STATUS & I2C_STATUS_FIFOEMPTY_MASK)) {
-                *(buf++) = ptr->DATA;
-                left--;
-                if (left == 0) {
-                    ptr->CMD = I2C_CMD_NACK;
-                } else {
-                    /* ACK is sent when reading */
-                    if (!(flags & RT_I2C_NO_READ_ACK)) {
-                        ptr->CMD = I2C_CMD_ACK;
-                    }
-                }
-                retry = 0;
-            } else {
-                if (retry > HPM_I2C_DRV_DEFAULT_RETRY_COUNT) {
-                    break;
-                }
-                retry++;
-            }
-        }
-        if (retry > HPM_I2C_DRV_DEFAULT_RETRY_COUNT) {
-            return status_timeout;
-        }
-    } else {
-        while (left) {
-            if (!(ptr->STATUS & I2C_STATUS_FIFOFULL_MASK)) {
-                ptr->DATA = *(buf++);
-                left--;
-                retry = 0;
-            } else {
-                if (retry > HPM_I2C_DRV_DEFAULT_RETRY_COUNT) {
-                    break;
-                }
-                retry++;
-            }
-        }
-        if (retry > HPM_I2C_DRV_DEFAULT_RETRY_COUNT) {
-            return status_timeout;
-        }
-    }
-    retry = 0;
-    while (!(ptr->STATUS & I2C_STATUS_CMPL_MASK)) {
-        if (retry > HPM_I2C_DRV_DEFAULT_RETRY_COUNT) {
-            break;
-        }
-        retry++;
-    };
-    if (retry > HPM_I2C_DRV_DEFAULT_RETRY_COUNT) {
-        return status_timeout;
-    }
-
-    if (i2c_get_data_count(ptr) && (size)) {
-        return status_i2c_transmit_not_completed;
-    }
+    handle_i2c_isr(HPM_I2C4);
 }
+#endif
+
+#if defined(BSP_USING_I2C5)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C5, i2c5_isr);
+void i2c5_isr(void)
+{
+    handle_i2c_isr(HPM_I2C5);
+}
+#endif
+
+#if defined(BSP_USING_I2C6)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C6, i2c6_isr);
+void i2c6_isr(void)
+{
+    handle_i2c_isr(HPM_I2C6);
+}
+#endif
+
+#if defined(BSP_USING_I2C7)
+SDK_DECLARE_EXT_ISR_M(IRQn_I2C7, i2c7_isr);
+void i2c7_isr(void)
+{
+    handle_i2c_isr(HPM_I2C7);
+}
+#endif
+
 
 static hpm_stat_t i2c_tx_trigger_dma(DMA_Type *dma_ptr, uint8_t ch_num, I2C_Type *i2c_ptr, uint32_t src, uint32_t size)
 {
@@ -336,7 +362,6 @@ static rt_ssize_t hpm_i2c_master_transfer(struct rt_i2c_bus_device *bus, struct 
                 }
                 else
                 {
-                    aligned_buf = (uint8_t*)HPM_L1C_CACHELINE_ALIGN_UP((uint32_t)raw_alloc_buf);
                     /* The allocated pointer is always RT_ALIGN_SIZE aligned */
                     raw_alloc_buf = (uint8_t*)rt_malloc(aligned_len + HPM_L1C_CACHELINE_SIZE - RT_ALIGN_SIZE);
                     RT_ASSERT(raw_alloc_buf != RT_NULL);
@@ -398,7 +423,7 @@ static rt_ssize_t hpm_i2c_master_transfer(struct rt_i2c_bus_device *bus, struct 
                     }
                     else
                     {
-                        i2c_transfer(i2c_info->base, msg->addr, dummy_buf, transfer_len, msg->flags);
+                        i2c_master_transfer(i2c_info->base, msg->addr, dummy_buf, transfer_len, msg->flags);
                     }
                     dummy_buf += transfer_len;
                     remaining_size -= transfer_len;
@@ -451,7 +476,7 @@ static rt_ssize_t hpm_i2c_master_transfer(struct rt_i2c_bus_device *bus, struct 
                     }
                     else
                     {
-                        i2c_transfer(i2c_info->base, msg->addr, dummy_buf, transfer_len, msg->flags);
+                        i2c_master_transfer(i2c_info->base, msg->addr, dummy_buf, transfer_len, msg->flags);
                     }
                     dummy_buf += transfer_len;
                     remaining_size -= transfer_len;
@@ -490,7 +515,7 @@ int rt_hw_i2c_init(void)
 
     for (uint32_t i = 0; i < sizeof(hpm_i2cs) / sizeof(hpm_i2cs[0]); i++) {
         init_i2c_pins(hpm_i2cs[i].base);
-        clock_add_to_group(hpm_i2cs[i].clk_name, 0);
+        clock_add_to_group(hpm_i2cs[i].clk_name, BOARD_RUNNING_CORE & 0x1);
         clock_set_source_divider(hpm_i2cs[i].clk_name, clk_src_osc24m, 1U);
 
         config.i2c_mode = i2c_mode_normal;
@@ -511,7 +536,7 @@ int rt_hw_i2c_init(void)
             }
             dma_mgr_install_chn_tc_callback(&hpm_i2cs[i].dma, i2c_dma_channel_tc_callback, (void *)&hpm_i2cs[i]);
             dma_mgr_enable_dma_irq_with_priority(&hpm_i2cs[i].dma, 1);
-            intc_m_enable_irq_with_priority(hpm_i2cs[i].i2c_irq, 2);
+            intc_m_enable_irq_with_priority(hpm_i2cs[i].i2c_irq, hpm_i2cs[i].irq_priority);
             i2c_disable_irq(hpm_i2cs[i].base, I2C_EVENT_TRANSACTION_COMPLETE);
             rt_sprintf(sem_name, "%s_s", hpm_i2cs[i].bus_name);
             hpm_i2cs[i].xfer_sem = rt_sem_create(sem_name, 0, RT_IPC_FLAG_PRIO);
